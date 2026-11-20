@@ -11,7 +11,7 @@ class ScenarioType(Enum):
     
 
 class Scenario:
-    def __init__(self, interval, scenario):
+    def __init__(self, interval = 0.99, scenario=ScenarioType.S1):
         self.scenario = scenario
         self.conf_interval = interval
         self.seeds = [randint(0, 1000) for _ in range(20)]
@@ -19,13 +19,24 @@ class Scenario:
         match scenario:
             case ScenarioType.S1:
                 N = 22
-                self.veh = ["circle", cp.make_circle(), N, ]
+                self.veh = [cp.place_vehicles(cp.make_circle(230.0), N, "uniform",
+                                               N/230, self.seeds[i]) for i in range(len(self.seeds))]
+                for seed_vehicles in self.veh:
+                    for vehicle in seed_vehicles.values():
+                        vehicle["v"] = 0
             case ScenarioType.S2:
-                N = ?
-                self.veh = ["circle", cp.make_stadium(), N, ]
+                max = 999 # faut calculer la saturation zebi, je sais pas encore comment choper cette D
+                N = [randint(10, max) for _ in range(20)]
+                self.veh = [cp.place_vehicles(cp.make_stadium(), N[i], "random", 2, self.seeds[i]) for i in range(len(self.seeds))]
             case ScenarioType.S3:
-                N = ?
-                self.veh = ["circle", cp.make_stadium(), N, ]
+                N = 40
+                self.veh = cp.place_vehicles(cp.make_stadium(), N, )
+
+    def play_scenario(self):
+        pass
+
+    def print_results(self):
+        pass
     
         
         
