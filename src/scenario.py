@@ -34,8 +34,10 @@ class Scenario:
                 N = 40
                 self.veh = cp.place_vehicles(cp.make_stadium(), N)
                 self.veh["v"][:] = self.v_equilibre
+        self.play_scenario()
 
     def play_scenario(self):
+        
         pass
 
     def print_results(self):
