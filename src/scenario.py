@@ -3,6 +3,7 @@ from enum import Enum
 import circuit_template as cp
 import numpy as np
 from random import randint
+from metric import Trajectory
 
 class ScenarioType(Enum):
     S1 = "Anneau de Sugiyama"
@@ -16,6 +17,9 @@ class Scenario:
         self.conf_interval = interval
         self.seeds = [randint(0, 1000) for _ in range(20)]
         self.v_equilibre = 7
+        self.t_end = 600
+        self.t_w = 300
+
 
         match scenario:
             case ScenarioType.S1:
@@ -34,10 +38,13 @@ class Scenario:
                 N = 40
                 self.veh = cp.place_vehicles(cp.make_stadium(), N)
                 self.veh["v"][:] = self.v_equilibre
+                self.t_w = 200
+
         self.play_scenario()
 
     def play_scenario(self):
         
+        self.trajectory = Trajectory()
         pass
 
     def print_results(self):
