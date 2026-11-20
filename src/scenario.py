@@ -15,22 +15,25 @@ class Scenario:
         self.scenario = scenario
         self.conf_interval = interval
         self.seeds = [randint(0, 1000) for _ in range(20)]
+        self.v_equilibre = 7
 
         match scenario:
             case ScenarioType.S1:
                 N = 22
                 self.veh = [cp.place_vehicles(cp.make_circle(230.0), N, "uniform",
-                                               N/230, self.seeds[i]) for i in range(len(self.seeds))]
+                                               N/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
                 for seed_vehicles in self.veh:
-                    for vehicle in seed_vehicles.values():
-                        vehicle["v"] = 0
+                        seed_vehicles["v"][:] = 0
+
             case ScenarioType.S2:
                 max = 999 # faut calculer la saturation zebi, je sais pas encore comment choper cette D
                 N = [randint(10, max) for _ in range(20)]
-                self.veh = [cp.place_vehicles(cp.make_stadium(), N[i], "random", 2, self.seeds[i]) for i in range(len(self.seeds))]
+                self.veh = [cp.place_vehicles(cp.make_stadium(), N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
+
             case ScenarioType.S3:
                 N = 40
-                self.veh = cp.place_vehicles(cp.make_stadium(), N, )
+                self.veh = cp.place_vehicles(cp.make_stadium(), N)
+                self.veh["v"][:] = self.v_equilibre
 
     def play_scenario(self):
         pass
