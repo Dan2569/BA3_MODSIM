@@ -11,9 +11,12 @@ N_LANES = 2           # nombre de voies par sens
 VEH_LENGTH = 5.0      # longueur d'un véhicule [m]
 VEH_WIDTH = 1.9       # largeur d'un véhicule [m]
 
+
+BMAX, AMAX, VLIM = 9.0, 3.0, 30.0
+GAP_LIBRE = 1e6     # gap fictif quand il n'y a pas de leader
+
 # demi-largeur totale de la route (de l'axe jusqu'au bord extérieur)
 HALF_ROAD = MEDIAN_WIDTH / 2 + N_LANES * LANE_WIDTH
-
 
 def lane_offset(direction, lane):
     """Décalage latéral (signé) du centre d'une voie par rapport à l'axe du circuit."""
@@ -285,3 +288,81 @@ def print_neighbours_table(veh, L):
     cols_gap = ["gap avant [m]", "gap arrière [m]", "gap autre voie [m]"]
     return (df.style.format({"s [m]": "{:.1f}", "v [m/s]": "{:.1f}", **{c: "{:.1f}" for c in cols_gap}}, na_rep="—")
     .background_gradient(subset=cols_gap, cmap="RdYlGn", vmin=0, vmax=60).set_caption("Voisins de chaque véhicule (gap = pare-chocs à pare-chocs)"))
+
+
+def acceleration(gap, v, dv, params):
+    """ Calcule l'accélération théorique visée pour chaque véhicule.
+    
+    gap : float ou np.ndarray, distance pare-chocs à pare-chocs s_n [m]
+    v : float ou np.ndarray, vitesse actuelle v_n [m/s]
+    dv : float ou np.ndarray, vitesse relative (v_leader - v_n) [m/s]
+    params : dict contenant v0, a_max, b_max, s0, T
+    
+    Valeurs par défaut inspirées de l'IDM original
+    """
+    v0 = params.get('v0', 30.0) # Vitesse désirée (max 30 m/s)
+    s0 = params.get('s0', 2.0) # Distance de sécurité au repos [m]
+    T = params.get('T', 1.5) # Temps d'inter-véhicule [s]
+
+    s_star = s0+v*T # Gap désiré en fonction de la vitesse actuelle
+    a_variation = (gap-s_star)/(T**2) + (dv/T) # Accélération ou décélération en fonction du leader
+    a_libre = (v0 - v) / T # Accélération si la route est libre pour atteindre v0
+    
+    new_a = np.minimum(a_libre, a_variation) # Accélération finale
+    return new_a
+
+
+def step(s, v, dt, circuit, params):
+    """Un pas de temps dt pour UNE file de véhicules (une voie, un sens de circulation).
+
+    s, v     : tableaux (N,) : abscisses (croissantes dans le sens de circulation) et vitesses
+    Retourne s_new, v_new, info avec info = dict(
+        a_eff   : accélération effectivement appliquée (après saturation, avant collision),
+        sat     : True si le véhicule est saturé à -BMAX,
+        impacts : vitesses relatives à l'impact des collisions de ce pas,
+        dist    : distance parcourue pendant le pas (pour la position non repliée, donc Q)).
+    """
+    L = circuit.L
+    s = np.asarray(s, dtype=float)
+    v = np.asarray(v, dtype=float)
+    N = len(s)
+
+    # 1. Perception : leader, gap, dv (valeurs fictives s'il n'y a pas de leader)
+    veh = {"s": s, "v": v, "lane": np.zeros(N, int), "direction": np.ones(N, int)}
+    lead, gap, _, _ = neighbours(veh, L)
+    has = lead >= 0
+    gap = np.where(has & np.isfinite(gap), np.maximum(gap, 0.0), GAP_LIBRE)
+    lead_safe = np.where(has, lead, 0)
+    dv = np.where(has, v[lead_safe] - v, 0.0)
+
+    # 2. Accélération désirée, puis saturation dans [-BMAX, AMAX]
+    a_des = np.asarray(acceleration(gap, v, dv, params), dtype=float)
+    a = np.clip(np.nan_to_num(a_des, nan=-BMAX), -BMAX, AMAX)
+    sat = a <= -BMAX + 1e-9
+
+    # 3. Intégration (vitesse : Euler semi-implicite ; position : trapèze)
+    v_raw = v + a * dt
+    v_new = np.clip(v_raw, 0.0, VLIM)
+    a_eff = (v_new - v) / dt
+    dist = 0.5 * (v + v_new) * dt
+    stop = (v_raw < 0) & (a < 0)                 # arrêt en cours de pas : distance exacte
+    dist = np.where(stop, v ** 2 / (2 * np.where(stop, -a, 1.0)), dist)
+
+    # 4. Collisions (gap incrémental) et replacement derrière le leader
+    impacts = []
+    for _ in range(N + 1):
+        gap_new = gap + np.where(has, dist[lead_safe], 0.0) - dist
+        neg = has & (gap_new < -1e-9)
+        if not neg.any():
+            break
+        todo = neg & ~neg[lead_safe]             # on traite d'abord les leaders (cascade)
+        if not todo.any():                       # cas pathologique (anneau entier en collision)
+            todo = neg
+        for i in np.flatnonzero(todo):
+            impacts.append(v_new[i] - v_new[lead_safe[i]])
+        dist = np.where(todo, dist + gap_new, dist)   # recule jusqu'à gap = 0
+        v_new = np.where(todo, v_new[lead_safe], v_new)   # prend la vitesse du leader
+
+    s_new = np.mod(s + dist, L)
+    info = {"a_eff": a_eff, "sat": sat, "impacts": np.array(impacts), "dist": dist}
+    return s_new, v_new, info
