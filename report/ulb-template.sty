@@ -1,0 +1,168 @@
+%% ============================================================
+%% ulb-template.sty : Template ULB pour rapports (LuaLaTeX/XeLaTeX)
+%% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ulb-template}[2025/01/01 ULB Report Template]
+
+%% ── Base ────────────────────────────────────────────────────
+\RequirePackage[a4paper, margin=2.5cm]{geometry}
+\RequirePackage{iftex}
+
+\ifLuaTeX
+  \RequirePackage{fontspec}
+  \IfFontExistsTF{Libertinus Serif}
+    {\setmainfont{Libertinus Serif}[Ligatures=TeX]}
+    {\setmainfont{TeX Gyre Pagella}[Ligatures=TeX]}
+  \IfFontExistsTF{Inria Sans}
+    {\setsansfont{Inria Sans}[Ligatures=TeX]}
+    {\setsansfont{TeX Gyre Heros}[Ligatures=TeX]}
+\else\ifXeTeX
+  \RequirePackage{fontspec}
+  \IfFontExistsTF{Libertinus Serif}
+    {\setmainfont{Libertinus Serif}[Ligatures=TeX]}
+    {\setmainfont{TeX Gyre Pagella}[Ligatures=TeX]}
+  \IfFontExistsTF{Inria Sans}
+    {\setsansfont{Inria Sans}[Ligatures=TeX]}
+    {\setsansfont{TeX Gyre Heros}[Ligatures=TeX]}
+\else
+  \RequirePackage[T1]{fontenc}
+  \RequirePackage{libertinus}
+\fi\fi
+
+\RequirePackage[french]{babel}
+\RequirePackage{graphicx}
+\RequirePackage{xcolor}
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{amsmath, amssymb, amsthm}
+\RequirePackage{fancyhdr}
+\RequirePackage{titlesec}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage{cleveref}
+\RequirePackage{microtype}
+\RequirePackage{etoolbox}
+\RequirePackage{listings}
+\RequirePackage{enumitem}
+\RequirePackage{needspace}
+\RequirePackage{ragged2e}
+
+%% ── Couleurs ────────────────────────────────────────────────
+\definecolor{ulbblue}{RGB}{0,76,146}
+\definecolor{colDef} {RGB}{0,128,128}
+\definecolor{colThm} {RGB}{27,82,153}
+\definecolor{colPrf} {RGB}{35,157,174}
+\definecolor{colEx}  {RGB}{255,128,0}
+\definecolor{colProp}{RGB}{128,0,0}
+\definecolor{colCor} {RGB}{180,160,0}
+\definecolor{colLem} {RGB}{0,150,150}
+\definecolor{colRem} {RGB}{80,160,0}
+\definecolor{colNot} {RGB}{128,0,128}
+\definecolor{colWarn}{RGB}{200,0,0}
+\definecolor{codebg} {RGB}{240,240,240}
+
+%% ── Métadonnées (pied de page) ──────────────────────────────
+\newcommand{\@ulbtitle}  {Titre du document}
+\newcommand{\@ulbue}     {CODE-XXX}
+\newcommand{\@ulbsubject}{Nom du cours}
+\newcommand{\ulbTitle}[1]  {\renewcommand{\@ulbtitle}{#1}}
+\newcommand{\ulbUE}[1]     {\renewcommand{\@ulbue}{#1}}
+\newcommand{\ulbSubject}[1]{\renewcommand{\@ulbsubject}{#1}}
+
+%% ── En-têtes et pieds de page ───────────────────────────────
+\setlength{\headheight}{2.7cm}
+\setlength{\headsep}{5mm}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{%
+  \IfFileExists{logos/banner.png}
+    {\raisebox{-0.6cm}{\includegraphics[height=1.6cm]{logos/banner.png}}}
+    {}%
+}
+\fancyhead[R]{\small\scshape\sffamily\nouppercase{\rightmark}}
+\renewcommand{\headrulewidth}{1pt}
+\fancyfoot[L]{\small\@ulbue}
+\fancyfoot[C]{\small\@ulbsubject}
+\fancyfoot[R]{\small\thepage}
+\renewcommand{\footrulewidth}{0pt}
+
+%% ── Sections ────────────────────────────────────────────────
+\titleformat{\section}
+  {\needspace{4\baselineskip}\normalfont\Large\bfseries\sffamily}
+  {\thesection}{1em}{}
+\titleformat{\subsection}
+  {\needspace{3\baselineskip}\normalfont\large\bfseries\sffamily}
+  {\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\needspace{2\baselineskip}\normalfont\normalsize\bfseries\sffamily}
+  {\thesubsubsection}{1em}{}
+\titlespacing*{\section}      {0pt}{1.5em}{0.8em}
+\titlespacing*{\subsection}   {0pt}{1.2em}{0.6em}
+\titlespacing*{\subsubsection}{0pt}{1em}{0.5em}
+
+\numberwithin{equation}{section}
+
+%% ── Paragraphes ─────────────────────────────────────────────
+\setlength{\parindent}{20pt}
+\setlength{\parskip}{3pt}
+
+%% ── Liens ───────────────────────────────────────────────────
+\hypersetup{colorlinks=false, urlcolor=ulbblue}
+
+%% ── Code ────────────────────────────────────────────────────
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=none,
+  xleftmargin=5pt,
+  xrightmargin=5pt,
+  aboveskip=8pt,
+  belowskip=8pt,
+}
+\newcommand{\code}[1]{\colorbox{codebg}{\ttfamily\small #1}}
+
+%% ── Boîtes style "popup" ────────────────────────────────────
+%% #1 env, #2 titre, #3 couleur, #4 préfixe de label
+\newcommand{\@newpopupenv}[4]{%
+  \newtcbtheorem[number within=section, crefname={#2}{#2}]{#1}{#2}{%
+    enhanced, breakable,
+    arc=3pt,
+    colback=#3!8!white,
+    colframe=#3!70!black,
+    colbacktitle=#3!55!black,
+    coltitle=white,
+    fonttitle=\bfseries\sffamily,
+    attach boxed title to top left={yshift=-2mm, xshift=3mm},
+    boxed title style={arc=3pt},
+    before upper={\setlength{\parindent}{0pt}},
+  }{#4}%
+}
+
+%% ── Boîtes style "bordure gauche" ───────────────────────────
+\newcommand{\@newborderenv}[4]{%
+  \newtcbtheorem[number within=section, crefname={#2}{#2}]{#1}{#2}{%
+    enhanced, breakable,
+    frame hidden,
+    colback=white,
+    borderline west={3pt}{0pt}{#3},
+    colbacktitle=white,
+    coltitle=#3!60!black,
+    fonttitle=\bfseries\sffamily,
+    attach title to upper={\ ---\ },
+    before upper={\setlength{\parindent}{0pt}},
+    top=2mm, bottom=2mm, left=4mm, right=2mm,
+  }{#4}%
+}
+
+\@newpopupenv {definition}  {Définition} {colDef} {def}
+\@newpopupenv {theorem}     {Théorème}   {colThm} {thm}
+\@newpopupenv {proposition} {Proposition}{colProp}{prop}
+\@newpopupenv {corollary}   {Corollaire} {colCor} {cor}
+\@newpopupenv {lemma}       {Lemme}      {colLem} {lem}
+\@newpopupenv {notation}    {Notation}   {colNot} {not}
+
+\@newborderenv{myproof}     {Démonstration}{colPrf}{prf}
+\@newborderenv{example}     {Exemple}      {colEx} {ex}
+\@newborderenv{remark}      {Remarque}     {colRem}{rem}
+\@newborderenv{warning}     {Avertissement}{colWarn}{warn}
+
+\endinput

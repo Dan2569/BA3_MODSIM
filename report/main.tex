@@ -1,0 +1,63 @@
+%% ============================================================
+%% main.tex — Rapport Modsim (ULB)
+%% Compilation : lualatex main.tex && biber main && lualatex main.tex (×2)
+%% ============================================================
+
+\documentclass[12pt, a4paper]{article}
+
+\usepackage{ulb-template}
+
+\usepackage[backend=biber, style=alphabetic]{biblatex}
+\addbibresource{bibliography.bib}
+
+%% ── Métadonnées (pied de page + PDF) ────────────────────────
+\ulbTitle   {Modélisation et simulation\,: Rapport}
+\ulbUE      {INFOH-305}
+\ulbSubject {Modsim}
+
+\hypersetup{
+  pdftitle  = {Modélisation et simulation : Rapport},
+  pdfauthor = {Narcisi, P. ; Badi Budu Chris, S. ; Tshiswaka, D.},
+}
+
+\begin{document}
+
+%% ── Bloc titre (remplace la page de garde) ──────────────────
+\begin{center}
+  {\sffamily\bfseries\LARGE Modélisation et simulation\,: Rapport\par}
+  \vspace{1em}
+  {\large Narcisi, P. \quad Badi Budu Chris, S. \quad Tshiswaka, D.\par}
+  \vspace{0.3em}
+  {\small INFOH-305 --- Enseignant\,: Pascal Tribel \par}
+  {\small \today\par}
+\end{center}
+\vspace{1em}
+
+%% ── Corps du rapport ────────────────────────────────────────
+\section{Modélisation}\label{sec:modelisation}
+
+Description du modèle, des hypothèses et des paramètres.
+
+\section{Résultats}\label{sec:resultats}
+
+Présentation des résultats des simulations (figures, tableaux).
+
+\section{Discussion}\label{sec:discussion}
+
+Interprétation des résultats et mise en perspective.
+
+\section{Limites}\label{sec:limites}
+
+Limites du modèle et de l'étude.
+
+%% ── Bibliographie ───────────────────────────────────────────
+\nocite{*}  % à retirer une fois que vous citez avec \cite{...}
+\printbibliography[heading=bibintoc, title={Bibliographie}]
+
+%% ── Annexes ─────────────────────────────────────────────────
+\appendix
+\section*{Annexes}
+
+Code source, données complémentaires, etc.
+
+\end{document}
