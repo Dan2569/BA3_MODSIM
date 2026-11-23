@@ -103,7 +103,7 @@ class Scenario:
             simulations.append(self._simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
 
         results = self.compute_results(simulations, times)
-        self.print_results(results)
+        self._print_results(results)
         return results
 
 
@@ -142,6 +142,6 @@ class Scenario:
         mean = np.mean(metric, axis=0)
         return mean
 
-    def print_results(self, data):
+    def _print_results(self, data):
         for key, value in data:
             print(f"{key}: {value}\n")
