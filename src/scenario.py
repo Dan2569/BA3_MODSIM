@@ -66,11 +66,11 @@ class Scenario:
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
-                positions[k][lane]
-                speeds[k][lane] = s_new
-                accelerations[k][lane] = infos["a_eff"]
-                gaps[k][lane] = infos["dist"]
-                collisions += infos["impacts"]
+                positions[lane, k] = positions[lane, k - 1] + infos["dist"]
+                speeds[lane][k] = v_new
+                accelerations[lane][k] = infos["a_eff"]
+                gaps[lane][k] = infos["gap"] # a ajouter dans step, pas ici de le faire
+                collisions[lane] += infos["impacts"]
 
         return positions, speeds, accelerations, gaps, collisions
 
@@ -102,9 +102,10 @@ class Scenario:
             positions[lane],
             speeds[lane],
             accelerations[lane],
-            gapes[lane],
+            gaps[lane],
             collisions[lane],
-            230.0) for lane in range(4)]
-# need change the 230 put actual L
+            self.circ_stad.L) for lane in range(4)]
+
+
     def print_results(self):
         pass
