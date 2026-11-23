@@ -21,7 +21,7 @@ class Scenario:
         self.scenario = scenario
         self.conf_interval = interval
         self.seeds = [randint(0, 1000) for _ in range(20)]
-        self.v_equilibre = 7
+        self.v_equilibre = 7 # still needs to be calculated
         self.t_end = 600
         self.t_w = 300
         self.dt = 0.1
@@ -37,9 +37,10 @@ class Scenario:
                         seed_vehicles["v"][:] = 0
 
             case ScenarioType.S2:
-                max = 999 # faut calculer la saturation zebi, je sais pas encore comment choper cette D
-                self.N = [randint(10, max) for _ in range(20)]
+                min_gap = 2.0
                 self.circ_stad = cp.make_stadium()
+                max = int(self.circ_stad.L // (cp.VEH_LENGTH + min_gap))
+                self.N = [randint(10, max) for _ in range(20)]
                 self.veh = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
@@ -65,12 +66,15 @@ class Scenario:
                 s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
+                if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
+                    accelerations[lane][0] = -cp.BMAX #wont work i think, will fix later
+
                 #_____UPDATING_THE_TABLES_____
                 positions[lane, k] = positions[lane, k - 1] + infos["dist"]
                 speeds[lane][k] = v_new
                 accelerations[lane][k] = infos["a_eff"]
                 gaps[lane][k] = infos["gap"] # a ajouter dans step, pas ici de le faire
-                collisions[lane] += infos["impacts"]
+                collisions[lane].append(infos["impacts"]) # fix the impact output in step to match dan version of trajectory
 
         return positions, speeds, accelerations, gaps, collisions
 
@@ -105,6 +109,10 @@ class Scenario:
             gaps[lane],
             collisions[lane],
             self.circ_stad.L) for lane in range(4)]
+
+    def mean_results(self, simulations, ci=0.99):
+        '''mean the stochastic results into 4 data samples to inject in 4 trajectories (the 4 lanes)'''
+
 
 
     def print_results(self):
