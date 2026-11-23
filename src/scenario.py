@@ -3,7 +3,7 @@ from enum import Enum
 import circuit_template as cp
 import numpy as np
 from random import randint
-from metric import Trajectory
+import metric as mt
 
 class ScenarioType(Enum):
     S1 = "Anneau de Sugiyama"
@@ -29,6 +29,7 @@ class Scenario:
 
         match scenario:
             case ScenarioType.S1:
+                # 1m de perturbations toujours a ajouter
                 self.N = 22
                 self.circ_stad = cp.make_circle(230.0)
                 self.veh = [cp.place_vehicles(self.circ_stad, self.N, "uniform",
@@ -52,7 +53,8 @@ class Scenario:
 
         self.play_scenario()
 
-    def simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
+    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
+        '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
         lanes = []
         for direction in (+1, -1):
@@ -80,14 +82,14 @@ class Scenario:
 
 
     def play_scenario(self):
-        '''NP for now, probably can do better time complexity (not a dictionary pro)'''
+        '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
+        times = np.arange(0.0, self.t_end + self.dt, self.dt)
         for i in range(len(self.veh)):
 
             # _____INIT TABLES_____
             times = np.arange(0.0, self.t_end + self.dt, self.dt) # nvm 0.1 in the jupyter
-
             T = len(times)
 
             positions = np.zeros((4, T, self.N))
@@ -97,23 +99,49 @@ class Scenario:
             collisions = [[] for _ in range(4)]
 
             # _____SIMULATION_____
-            # calculate the mean of the data instead of storing for now, well do it later
             veh = self.veh[i]
-            simulations.append(self.simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
+            simulations.append(self._simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
+
+        results = self.compute_results(simulations, times)
+        self.print_results(results)
+        return results
 
 
-        return [Trajectory(times,
-            positions[lane],
-            speeds[lane],
-            accelerations[lane],
-            gaps[lane],
-            collisions[lane],
-            self.circ_stad.L) for lane in range(4)]
+    def compute_results(self, simulations, times, ci=0.99):
+        '''build the trajectories to extract the data from the simulations, then mean it to produce one piece of result'''
+        #_____INIT_TABLES_____
+        Q     = np.zeros((len(simulations), 4))
+        C     = np.zeros((len(simulations), 4))
+        D_max = np.zeros((len(simulations), 4))
+        D_99  = np.zeros((len(simulations), 4))
+        sat   = np.zeros((len(simulations), 4))
+        E_bar = np.zeros((len(simulations), 4))
 
-    def mean_results(self, simulations, ci=0.99):
-        '''mean the stochastic results into 4 data samples to inject in 4 trajectories (the 4 lanes)'''
+        #_____BUILD_TRAJECTORIES_____
+        trajectories = [
+            [mt.Trajectory(times, pos[lane], spd[lane], acc[lane], gap[lane], col[lane], self.circ_stad.L)
+                for lane in range(4)]
+            for pos, spd, acc, gap, col in simulations]
+
+        #_____BUILD_DATA_FROM_TRAJECTORIES_____
+        for i, row in enumerate(trajectories):
+            for j, traj in enumerate(row):
+                Q[i, j]     = mt.flow_Q(traj, self.t_w, self.t_end)
+                C[i, j]     = mt.collision_count(traj)
+                D_max[i, j] = mt.max_deceleration(traj, self.t_w, self.t_end)
+                D_99[i, j]  = mt.percentile_deceleration(traj, self.t_w, self.t_end)
+                sat[i, j]   = mt.saturation_fraction(traj, self.t_w, self.t_end)
+                E_bar[i, j] = mt.mean_equilibrium_distance(traj, self.t_w, self.t_end)
+
+        return {"Q": self._mean_metric(Q, ci), "C": self._mean_metric(C, ci),
+            "D_max": self._mean_metric(D_max, ci),"D_99": self._mean_metric(D_99, ci),
+            "sat": self._mean_metric(sat, ci), "E_bar": self._mean_metric(E_bar, ci)}
 
 
+    def _mean_metric(self, metric, ci=0.99):
+        mean = np.mean(metric, axis=0)
+        return mean
 
-    def print_results(self):
-        pass
+    def print_results(self, data):
+        for key, value in data:
+            print(f"{key}: {value}\n")
