@@ -9,7 +9,12 @@ class ScenarioType(Enum):
     S1 = "Anneau de Sugiyama"
     S2 = "Balayage en densité"
     S3 = "Freinage d'urgence"
-    
+
+params = {
+    "v0": 15.0,
+    "s0": 1.0,
+    "T": 1.5
+}
 
 class Scenario:
     def __init__(self, interval = 0.99, scenario=ScenarioType.S1):
@@ -19,6 +24,7 @@ class Scenario:
         self.v_equilibre = 7
         self.t_end = 600
         self.t_w = 300
+        self.dt = 0.1
 
 
         match scenario:
@@ -39,47 +45,66 @@ class Scenario:
             case ScenarioType.S3:
                 self.N = 40
                 self.circ_stad = cp.make_stadium()
-                self.veh = cp.place_vehicles(self.circ_stad, self.N)
-                self.veh["v"][:] = self.v_equilibre
+                self.veh = [cp.place_vehicles(self.circ_stad, self.N)]
+                self.veh[0]["v"][:] = self.v_equilibre
                 self.t_w = 200
 
         self.play_scenario()
 
-    def simulation_loop(self, times, positions, speeds, accelerations, gaps, collisions):
-        for dt in times:
-            for direction in (+1, -1):
-                for lane in range(cp.N_LANES):
-                    mask = ((self.veh["direction"] == direction) & (self.veh["lane"] == lane))
-                    indices = np.flatnonzero(mask)
-                    s_new, v_new, info = cp.step(self.veh["s"][indices], self.veh["v"][indices], dt, self.circ_stad)
-                    self.veh["s"][indices], self.veh["v"][indices] = s_new, v_new
+    def simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
+        #_____MASK_____
+        lanes = []
+        for direction in (+1, -1):
+            for lane in range(cp.N_LANES):
+                idx = np.flatnonzero((veh["direction"] == direction) & (veh["lane"] == lane))
+                lanes.append(idx)
+
+        for k, t in enumerate(times):
+            for lane, indices in enumerate(lanes):
+                #_____STEP_____
+                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
+                veh["s"][indices], veh["v"][indices] = s_new, v_new
+
+                #_____UPDATING_THE_TABLES_____
+                positions[k][lane]
+                speeds[k][lane] = s_new
+                accelerations[k][lane] = infos["a_eff"]
+                gaps[k][lane] = infos["dist"]
+                collisions += infos["impacts"]
+
         return positions, speeds, accelerations, gaps, collisions
 
 
     def play_scenario(self):
         '''NP for now, probably can do better time complexity (not a dictionary pro)'''
-        
+
         simulations = [] # temp
         for i in range(len(self.veh)):
+
             # _____INIT TABLES_____
-            times = np.arange(0.0, 600.0, 0.5) # step of time 0.5, dunno what is used in TPs
-    
+            times = np.arange(0.0, self.t_end + self.dt, self.dt) # nvm 0.1 in the jupyter
+
             T = len(times)
-            N = self.N * 4
-    
-            positions = np.zeros((T, N))
-            speeds = np.zeros((T, N))
-            accelerations = np.zeros((T, N))
-            gaps = np.zeros((T, N))
-            collisions = []
+
+            positions = np.zeros((4, T, self.N))
+            speeds = np.zeros((4, T, self.N))
+            accelerations = np.zeros((4, T, self.N))
+            gaps = np.zeros((4, T, self.N))
+            collisions = [[] for _ in range(4)]
+
             # _____SIMULATION_____
             # calculate the mean of the data instead of storing for now, well do it later
-            simulations.append(self.simulation_loop(times, positions, speeds, accelerations, gaps, collisions))
-        
-        return Trajectory()
+            veh = self.veh[i]
+            simulations.append(self.simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
 
+
+        return [Trajectory(times,
+            positions[lane],
+            speeds[lane],
+            accelerations[lane],
+            gapes[lane],
+            collisions[lane],
+            230.0) for lane in range(4)]
+# need change the 230 put actual L
     def print_results(self):
         pass
-    
-        
-        
