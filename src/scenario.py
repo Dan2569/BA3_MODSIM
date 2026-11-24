@@ -139,6 +139,7 @@ class Scenario:
 
 
     def _mean_metric(self, metric, ci=0.99):
+        #ohh still need to add the ci actually my bad
         mean = np.mean(metric, axis=0)
         return mean
 
