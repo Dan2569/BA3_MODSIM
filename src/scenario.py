@@ -74,10 +74,10 @@ class Scenario:
                     accelerations[lane][0] = -cp.BMAX #wont work i think, will fix later
 
                 #_____UPDATING_THE_TABLES_____
-                positions[lane, k] = positions[lane, k - 1] + infos["dist"]
-                speeds[lane][k] = v_new
+                positions[lane, k]     = positions[lane, k - 1] + infos["dist"]
+                speeds[lane][k]        = v_new
                 accelerations[lane][k] = infos["a_eff"]
-                gaps[lane][k] = infos["gap"] # a ajouter dans step, pas ici de le faire
+                gaps[lane][k]          = infos["gap"] # a ajouter dans step, pas ici de le faire
                 collisions[lane].append(infos["impacts"]) # fix the impact output in step to match dan version of trajectory
 
         return positions, speeds, accelerations, gaps, collisions
@@ -93,11 +93,11 @@ class Scenario:
             times = np.arange(0.0, self.t_end + self.dt, self.dt) # nvm 0.1 in the jupyter
             T = len(times)
 
-            positions = np.zeros((4, T, self.N))
-            speeds = np.zeros((4, T, self.N))
+            positions     = np.zeros((4, T, self.N))
+            speeds        = np.zeros((4, T, self.N))
             accelerations = np.zeros((4, T, self.N))
-            gaps = np.zeros((4, T, self.N))
-            collisions = [[] for _ in range(4)]
+            gaps          = np.zeros((4, T, self.N))
+            collisions    = [[] for _ in range(4)]
 
             # _____SIMULATION_____
             veh = self.veh[i]
@@ -136,9 +136,12 @@ class Scenario:
                 # convergence time for s3
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
-        return {"Q": self._mean_metric(Q, ci), "C": self._mean_metric(C, ci),
-            "D_max": self._mean_metric(D_max, ci),"D_99": self._mean_metric(D_99, ci),
-            "sat": self._mean_metric(sat, ci), "E_bar": self._mean_metric(E_bar, ci)}
+        return {"Q":     self._mean_metric(Q, ci),
+                "C":     self._mean_metric(C, ci),
+                "D_max": self._mean_metric(D_max, ci),
+                "D_99":  self._mean_metric(D_99, ci),
+                "sat":   self._mean_metric(sat, ci),
+                "E_bar": self._mean_metric(E_bar, ci)}
 
 
     def _mean_metric(self, metric, ci=0.99):
