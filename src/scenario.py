@@ -136,11 +136,11 @@ class Scenario:
                 # convergence time for s3
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
-        return {"Q":     self._mean_metric(Q, ci),
-                "C":     self._mean_metric(C, ci),
+        return {"Q"    : self._mean_metric(Q, ci),
+                "C"    : self._mean_metric(C, ci),
                 "D_max": self._mean_metric(D_max, ci),
-                "D_99":  self._mean_metric(D_99, ci),
-                "sat":   self._mean_metric(sat, ci),
+                "D_99" : self._mean_metric(D_99, ci),
+                "sat"  : self._mean_metric(sat, ci),
                 "E_bar": self._mean_metric(E_bar, ci)}
 
 
