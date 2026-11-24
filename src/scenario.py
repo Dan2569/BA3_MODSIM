@@ -31,7 +31,7 @@ class Scenario:
 
         match scenario:
             case ScenarioType.S1:
-                # 1m de perturbations toujours a ajouter
+                # 1m de perturbations toujours a ajouter et le min gap est WRONG
                 self.N         = 22
                 self.circ_stad = cp.make_circle(230.0)
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N, "uniform",
@@ -147,7 +147,14 @@ class Scenario:
     def _mean_metric(self, metric, ci=0.99):
         #ohh still need to add the ci actually my bad
         mean = np.mean(metric, axis=0)
-        return mean
+        std = np.std(metric, axis=0)
+        lower = mean - 1.960 * (std/np.sqrt(self.N))
+        upper = mean + 1.960 * (std/np.sqrt(self.N))
+
+        interval = metric>lower & metric<upper
+        confident_mean = np.mean(interval)
+        # hyper raciste, peut etre ca matrche, peut etre j'ai rien compris on verra
+        return confident_mean
 
     def print_results(self, data):
         for key, value in data.items:
