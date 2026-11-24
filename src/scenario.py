@@ -20,38 +20,38 @@ params = {
 
 class Scenario:
     def __init__(self, interval = 0.99, scenario=ScenarioType.S1):
-        self.scenario = scenario
+        self.scenario      = scenario
         self.conf_interval = interval
-        self.seeds = [randint(0, 1000) for _ in range(20)]
-        self.v_equilibre = 7 # still needs to be calculated
-        self.t_end = 600
-        self.t_w = 300
-        self.dt = 0.1
+        self.seeds         = [randint(0, 1000) for _ in range(20)]
+        self.v_equilibre   = 7 # still needs to be calculated
+        self.t_end         = 600
+        self.t_w           = 300
+        self.dt            = 0.1
 
 
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter
-                self.N = 22
+                self.N         = 22
                 self.circ_stad = cp.make_circle(230.0)
-                self.veh = [cp.place_vehicles(self.circ_stad, self.N, "uniform",
+                self.veh       = [cp.place_vehicles(self.circ_stad, self.N, "uniform",
                                                self.N/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
                 for seed_vehicles in self.veh:
                         seed_vehicles["v"][:] = 0
 
             case ScenarioType.S2:
-                min_gap = 2.0
+                min_gap        = 2.0
                 self.circ_stad = cp.make_stadium()
-                max = int(self.circ_stad.L // (cp.VEH_LENGTH + min_gap))
-                self.N = [randint(10, max) for _ in range(20)]
-                self.veh = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
+                max            = int(self.circ_stad.L // (cp.VEH_LENGTH + min_gap))
+                self.N         = [randint(10, max) for _ in range(20)]
+                self.veh       = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
-                self.N = 40
-                self.circ_stad = cp.make_stadium()
-                self.veh = [cp.place_vehicles(self.circ_stad, self.N)]
+                self.N              = 40
+                self.circ_stad      = cp.make_stadium()
+                self.veh            = [cp.place_vehicles(self.circ_stad, self.N)]
                 self.veh[0]["v"][:] = self.v_equilibre
-                self.t_w = 200
+                self.t_w            = 200
 
         self.play_scenario()
 
