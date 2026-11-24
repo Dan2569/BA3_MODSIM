@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
-import circuit_template as cp
-import numpy as np
 from random import randint
+
+import circuit_template as cp
 import metric as mt
+import numpy as np
+
 
 class ScenarioType(Enum):
     S1 = "Anneau de Sugiyama"
@@ -56,7 +58,7 @@ class Scenario:
     def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
-        lanes = []
+        lanes = [] # pas sur que la boucle step fonctionen corretement dans les 2 sens
         for direction in (+1, -1):
             for lane in range(cp.N_LANES):
                 idx = np.flatnonzero((veh["direction"] == direction) & (veh["lane"] == lane))
@@ -85,7 +87,6 @@ class Scenario:
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
-        times = np.arange(0.0, self.t_end + self.dt, self.dt)
         for i in range(len(self.veh)):
 
             # _____INIT TABLES_____
@@ -102,9 +103,9 @@ class Scenario:
             veh = self.veh[i]
             simulations.append(self._simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
 
-        results = self.compute_results(simulations, times)
-        self._print_results(results)
-        return results
+        self.results = self.compute_results(simulations, simulations[0]["times"], self.conf_interval)
+        self.print_results(self.results)
+        return self.results
 
 
     def compute_results(self, simulations, times, ci=0.99):
@@ -132,6 +133,8 @@ class Scenario:
                 D_99[i, j]  = mt.percentile_deceleration(traj, self.t_w, self.t_end)
                 sat[i, j]   = mt.saturation_fraction(traj, self.t_w, self.t_end)
                 E_bar[i, j] = mt.mean_equilibrium_distance(traj, self.t_w, self.t_end)
+                # convergence time for s3
+                # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
         return {"Q": self._mean_metric(Q, ci), "C": self._mean_metric(C, ci),
             "D_max": self._mean_metric(D_max, ci),"D_99": self._mean_metric(D_99, ci),
@@ -143,6 +146,6 @@ class Scenario:
         mean = np.mean(metric, axis=0)
         return mean
 
-    def _print_results(self, data):
-        for key, value in data:
+    def print_results(self, data):
+        for key, value in data.items:
             print(f"{key}: {value}\n")
