@@ -359,9 +359,9 @@ def step(s, v, dt, circuit, params):
         if not todo.any():                       # cas pathologique (anneau entier en collision)
             todo = neg
         for i in np.flatnonzero(todo):
-            indices = [i for i, x in enumerate(todo) if x == True]
-            impacts.append(v_new[i] - v_new[lead_safe[i]])
-            
+            n_veh = [i for i, x in enumerate(todo) if x == True]
+            impact = (t,n_veh,v_new[i] - v_new[lead_safe[i]])
+            impacts.append(impact)
         dist = np.where(todo, dist + gap_new, dist)   # recule jusqu'à gap = 0
         v_new = np.where(todo, v_new[lead_safe], v_new)   # prend la vitesse du leader
 
