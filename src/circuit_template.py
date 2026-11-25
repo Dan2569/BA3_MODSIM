@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import scenario as sc
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from scipy.interpolate import splev, splprep
 from scipy.integrate import solve_ivp
-from scenario import Strategy
 
 LANE_WIDTH = 3.5      # largeur d'une voie [m]
 MEDIAN_WIDTH = 3.0    # largeur du terre-plein central [m]
@@ -306,9 +306,9 @@ def loi_idm(gap, v, dv, params):
 def acceleration(gap, v, dv, params):
     """Point d'entrée unique, appelé par step : aiguille vers la stratégie params["strategy"]."""
     match params.get("strategy"):
-        case Strategy.maxVelocity:
+        case sc.Strategy.maxVelocity:
             return loi_idm(gap, v, dv, params)
-        case Strategy.leastBreaks:
+        case sc.Strategy.leastBreaks:
             raise ValueError('Fonction inconnue')
 
 

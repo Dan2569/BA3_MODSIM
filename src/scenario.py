@@ -20,8 +20,9 @@ class Strategy(Enum):
 params = {
     "v0"        : 7,
     "T"         : 0.1,
-    "Direction" : +1,
-    "Strategy"  : Strategy.maxVelocity
+    "direction" : +1,
+    "strategy"  : Strategy.maxVelocity,
+    "forced"    : {0, 1.0}
 }
 
 
@@ -29,7 +30,7 @@ class Scenario:
     def __init__(self, scenario=ScenarioType.S1):
         self.scenario      = scenario
         self.seeds         = [randint(0, 1000) for _ in range(20)]
-        self.v_equilibre   = 7 # still needs to be calculated
+        self.v_equilibre   = 7
         self.t_end         = 600
         self.t_w           = 300
         self.dt            = 0.1
@@ -54,13 +55,11 @@ class Scenario:
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
-                self.N         = [40//(cp.N_LANES*2)]
-                self.circ_stad = cp.make_stadium()
-                self.veh       = [cp.place_vehicles(self.circ_stad, self.N[0])]
-                self.t_w       = 200
-
-                self.veh[0]["acceleration"][:] = 0
-                self.veh[0]["v"][:]            = self.v_equilibre
+                self.N              = [40//(cp.N_LANES*2)]
+                self.circ_stad      = cp.make_stadium()
+                self.veh            = [cp.place_vehicles(self.circ_stad, self.N[0])]
+                self.t_w            = 200
+                self.veh[0]["v"][:] = self.v_equilibre
 
         self.play_scenario()
 
@@ -78,7 +77,7 @@ class Scenario:
             for lane, indices in enumerate(lanes):
                 #_____STEP_____
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
-                    accelerations[lane][0] = -cp.BMAX #maybe work actually
+                    params["forced"] = {0: -cp.BMAX}
                 # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
                 params["T"] = t
                 params["direction"] = veh["direction"][indices[0]]
