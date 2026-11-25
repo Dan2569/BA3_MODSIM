@@ -1,11 +1,15 @@
 import numpy as np
+from enum import Enum
 import matplotlib.pyplot as plt
 import pandas as pd
-import scenario as sc
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from scipy.interpolate import splev, splprep
 from scipy.integrate import solve_ivp
+
+class Strategy(Enum):
+    maxVelocity = {} # max accelleration -> full brakes
+    leastBreaks = {} # keep good distance to leader
 
 LANE_WIDTH = 3.5      # largeur d'une voie [m]
 MEDIAN_WIDTH = 3.0    # largeur du terre-plein central [m]
@@ -306,9 +310,9 @@ def loi_idm(gap, v, dv, params):
 def acceleration(gap, v, dv, params):
     """Point d'entrée unique, appelé par step : aiguille vers la stratégie params["strategy"]."""
     match params.get("strategy"):
-        case sc.Strategy.maxVelocity:
+        case Strategy.maxVelocity:
             return loi_idm(gap, v, dv, params)
-        case sc.Strategy.leastBreaks:
+        case Strategy.leastBreaks:
             raise ValueError('Fonction inconnue')
 
 

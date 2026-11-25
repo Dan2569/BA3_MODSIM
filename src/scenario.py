@@ -12,17 +12,13 @@ class ScenarioType(Enum):
     S2 = "Balayage en densité"
     S3 = "Freinage d'urgence"
 
-class Strategy(Enum):
-    maxVelocity = {} # max accelleration -> full brakes
-    leastBreaks = {} # keep good distance to leader
-
 
 params = {
     "v0"        : 7,
     "T"         : 0.1,
     "direction" : +1,
     "strategy"  : Strategy.maxVelocity,
-    "forced"    : {0, 1.0}
+    "forced"    : {0 : 1.0}
 }
 
 
@@ -64,7 +60,7 @@ class Scenario:
         self.play_scenario()
 
 
-    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions, strategy=Strategy.maxVelocity):
+    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions, strategy=cp.Strategy.maxVelocity):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
         lanes = []
@@ -94,7 +90,7 @@ class Scenario:
         return times, positions, speeds, accelerations, gaps, collisions
 
 
-    def play_scenario(self, confidence_level=0.95, strategy=Strategy.maxVelocity):
+    def play_scenario(self, confidence_level=0.95, strategy=cp.Strategy.maxVelocity):
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
