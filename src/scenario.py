@@ -12,11 +12,18 @@ class ScenarioType(Enum):
     S2 = "Balayage en densité"
     S3 = "Freinage d'urgence"
 
+class Strategy(Enum):
+    maxVelocity = {} # max accelleration -> full brakes
+    leastBreaks = {} # keep good distance to leader
+
+
 params = {
-    "v0": 15.0,
-    "s0": 1.0,
-    "T": 1.5
+    "v0"        : 7,
+    "T"         : 0.1,
+    "Direction" : +1,
+    "Strategy"  : Strategy.maxVelocity
 }
+
 
 class Scenario:
     def __init__(self, scenario=ScenarioType.S1):
@@ -47,15 +54,18 @@ class Scenario:
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
-                self.N              = [40//(cp.N_LANES*2)]
-                self.circ_stad      = cp.make_stadium()
-                self.veh            = [cp.place_vehicles(self.circ_stad, self.N[0])]
-                self.veh[0]["v"][:] = self.v_equilibre
-                self.t_w            = 200
+                self.N         = [40//(cp.N_LANES*2)]
+                self.circ_stad = cp.make_stadium()
+                self.veh       = [cp.place_vehicles(self.circ_stad, self.N[0])]
+                self.t_w       = 200
+
+                self.veh[0]["acceleration"][:] = 0
+                self.veh[0]["v"][:]            = self.v_equilibre
 
         self.play_scenario()
 
-    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
+
+    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions, strategy=Strategy.maxVelocity):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
         lanes = []
@@ -70,7 +80,9 @@ class Scenario:
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
                     accelerations[lane][0] = -cp.BMAX #maybe work actually
                 # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
-                s_new, v_new, infos = cp.step(t, veh["direction"][indices[0]], veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
+                params["T"] = t
+                params["direction"] = veh["direction"][indices[0]]
+                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
@@ -83,7 +95,7 @@ class Scenario:
         return times, positions, speeds, accelerations, gaps, collisions
 
 
-    def play_scenario(self, confidence_level=0.95):
+    def play_scenario(self, confidence_level=0.95, strategy=Strategy.maxVelocity):
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
@@ -91,7 +103,7 @@ class Scenario:
         for simulation in self.veh:
 
             # _____INIT TABLES_____
-            # not up to date since now can ivertake -> not fixed number of cars on one lane then
+            # not up to date since now can overtake -> not fixed number of cars on one lane then
             times = np.arange(0.0, self.t_end + self.dt, self.dt)
             T = len(times)
             N = len(simulation["s"]) // 4
@@ -103,7 +115,7 @@ class Scenario:
             collisions    = [[] for _ in range(4)]
 
             # _____SIMULATION_____
-            simulations.append(self._simulation_loop(simulation, times, positions, speeds, accelerations, gaps, collisions))
+            simulations.append(self._simulation_loop(simulation, times, positions, speeds, accelerations, gaps, collisions, strategy))
 
         self.results = self.compute_results(simulations, times, confidence_level)
         self.print_results(self.results)

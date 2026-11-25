@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path
 from scipy.interpolate import splev, splprep
-import pandas as pd
+from scipy.integrate import solve_ivp
+from scenario import Strategy
 
 LANE_WIDTH = 3.5      # largeur d'une voie [m]
 MEDIAN_WIDTH = 3.0    # largeur du terre-plein central [m]
@@ -290,26 +292,47 @@ def print_neighbours_table(veh, L):
     .background_gradient(subset=cols_gap, cmap="RdYlGn", vmin=0, vmax=60).set_caption("Voisins de chaque véhicule (gap = pare-chocs à pare-chocs)"))
 
 
+def loi_idm(gap, v, dv, params):
+    """Loi linéaire à temps inter-véhiculaire constant (type ACC)."""
+    v0 = params.get('v0', 30.0)     # vitesse désirée [m/s]
+    s0 = params.get('s0', 2.0)      # distance minimale à l'arrêt [m]
+    T = params.get('T', 1.5)        # temps inter-véhiculaire [s]
+    s_star = s0 + v * T
+    a_variation = (gap - s_star) / (T ** 2) + dv / T
+    a_libre = (v0 - v) / T
+    return np.minimum(a_libre, a_variation)
+
+
 def acceleration(gap, v, dv, params):
-    """ Calcule l'accélération théorique visée pour chaque véhicule.
+    """Point d'entrée unique, appelé par step : aiguille vers la stratégie params["strategy"]."""
+    match params.get("strategy"):
+        case Strategy.maxVelocity:
+            return loi_idm(gap, v, dv, params)
+        case Strategy.leastBreaks:
+            raise ValueError('Fonction inconnue')
 
-    gap : float ou np.ndarray, distance pare-chocs à pare-chocs s_n [m]
-    v : float ou np.ndarray, vitesse actuelle v_n [m/s]
-    dv : float ou np.ndarray, vitesse relative (v_leader - v_n) [m/s]
-    params : dict contenant v0, a_max, b_max, s0, T
 
-    Valeurs par défaut inspirées de l'IDM original
-    """
-    v0 = params.get('v0', 30.0) # Vitesse désirée (max 30 m/s)
-    s0 = params.get('s0', 2.0) # Distance de sécurité au repos [m]
-    T = params.get('T', 1.5) # Temps d'inter-véhicule [s]
+def integrer_scipy(gap, v, has, lead_safe, dt, params):
+    """Intègre [distance parcourue, vitesse] des N véhicules sur [0, dt] avec solve_ivp."""
+    N = len(v)
+    forced = params.get("forced", {})
 
-    s_star = s0+v*T # Gap désiré en fonction de la vitesse actuelle
-    a_variation = (gap-s_star)/(T**2) + (dv/T) # Accélération ou décélération en fonction du leader
-    a_libre = (v0 - v) / T # Accélération si la route est libre pour atteindre v0
+    def xdot(t, x):                                   # x = [distance parcourue (N), vitesse (N)]
+        dist, vel = x[:N], x[N:]
+        g = np.maximum(np.where(has, gap + dist[lead_safe] - dist, GAP_LIBRE), 0.0)
+        dvel = np.where(has, vel[lead_safe] - vel, 0.0)
+        a = np.array(acceleration(g, vel, dvel, params), dtype=float)
+        for i, a_i in forced.items():                 # S3 : accélération imposée
+            a[i] = a_i
+        a = np.clip(np.nan_to_num(a, nan=-BMAX), -BMAX, AMAX)
+        a = np.where((vel <= 0.0) & (a < 0.0), 0.0, a)      # pas de marche arrière
+        a = np.where((vel >= VLIM) & (a > 0.0), 0.0, a)     # pas au-delà de VLIM
+        return np.concatenate([vel, a])
 
-    new_a = np.minimum(a_libre, a_variation) # Accélération finale
-    return new_a
+    t_integration = [0.0, dt]
+    x0 = np.concatenate([np.zeros(N), v])
+    sol = solve_ivp(xdot, t_integration, x0, t_eval=[dt], rtol=1e-3, atol=1e-4)
+    return sol.y[:N, -1], np.clip(sol.y[N:, -1], 0.0, VLIM)
 
 
 def step(s, v, dt, circuit, params):
@@ -333,22 +356,13 @@ def step(s, v, dt, circuit, params):
     has = lead >= 0
     gap = np.where(has & np.isfinite(gap), np.maximum(gap, 0.0), GAP_LIBRE)
     lead_safe = np.where(has, lead, 0)
-    dv = np.where(has, v[lead_safe] - v, 0.0)
 
-    # 2. Accélération désirée, puis saturation dans [-BMAX, AMAX]
-    a_des = np.asarray(acceleration(gap, v, dv, params), dtype=float)
-    a = np.clip(np.nan_to_num(a_des, nan=-BMAX), -BMAX, AMAX)
-    sat = a <= -BMAX + 1e-9
-
-    # 3. Intégration (vitesse : Euler semi-implicite ; position : trapèze)
-    v_raw = v + a * dt
-    v_new = np.clip(v_raw, 0.0, VLIM)
+    # 2. Accélération, puis saturation dans [-BMAX, AMAX], intégration.
+    dist, v_new = integrer_scipy(gap, v, has, lead_safe, dt, params)
     a_eff = (v_new - v) / dt
-    dist = 0.5 * (v + v_new) * dt
-    stop = (v_raw < 0) & (a < 0)                 # arrêt en cours de pas : distance exacte
-    dist = np.where(stop, v ** 2 / (2 * np.where(stop, -a, 1.0)), dist)
+    sat = a_eff <= -BMAX + 1e-9
 
-    # 4. Collisions (gap incrémental) et replacement derrière le leader
+    # 3. Collisions (gap incrémental) et replacement derrière le leader
     impacts = []
     for _ in range(N + 1):
         gap_new = gap + np.where(has, dist[lead_safe], 0.0) - dist
@@ -360,11 +374,12 @@ def step(s, v, dt, circuit, params):
             todo = neg
         for i in np.flatnonzero(todo):
             n_veh = [i for i, x in enumerate(todo) if x == True]
-            impact = (t,n_veh,v_new[i] - v_new[lead_safe[i]])
+            impact = (params["T"],n_veh,v_new[i] - v_new[lead_safe[i]])
             impacts.append(impact)
         dist = np.where(todo, dist + gap_new, dist)   # recule jusqu'à gap = 0
         v_new = np.where(todo, v_new[lead_safe], v_new)   # prend la vitesse du leader
 
     s_new = np.mod(s + dist, L)
-    info = {"a_eff": a_eff, "sat": sat, "impacts": np.array(impacts), "dist": dist}
+    gap_final = np.where(has, np.maximum(gap + dist[lead_safe] - dist, 0.0), GAP_LIBRE)   # gap APRÈS le pas
+    info = {"a_eff": a_eff, "sat": sat, "impacts": np.array(impacts), "dist": dist, "gap": gap_final}
     return s_new, v_new, info

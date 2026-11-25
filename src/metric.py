@@ -9,7 +9,7 @@ B_MAX = 9.0   # limite de décélération du simulateur [m/s²]
 class Trajectory:
     t: np.ndarray          # (T,)
     x: np.ndarray          # (T, N) positions non repliées
-    v: np.ndarray          # (T, N) vitesse 
+    v: np.ndarray          # (T, N) vitesse
     a: np.ndarray          # (T, N) accélération réellement appliquée
     gap: np.ndarray        # (T, N) distances s_n pare-chocs à pare-chocs
     collisions: list       # [(t, n, v_rel), ...]
@@ -21,7 +21,7 @@ class Trajectory:
 
     def get_s_e(self):
         return self.L / self.get_N() - self.l
-    
+
 
 def _mask(traj, t_w=None, t_end=None):
     t_w = traj.t[0] if t_w is None else t_w
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         x=np.array([[0., 0., 0., 0.],
                     [10., 10., 10., 10.]]),
         v=np.full((2, 4), 10.), #[[10., 10., 10., 10.],[10., 10., 10., 10.]]
-        
+
         a=np.zeros((2, 4)),
         gap=np.full((2, 4), 20.),
         collisions=[],
@@ -159,7 +159,5 @@ if __name__ == "__main__":
 #Comprendre cles fonction acceleration, gap, le moteur
 #Comprendre les scénarios et les simulations
 
-#Etape 4: 
+#Etape 4:
 #Comprendre comment trouver les fonctions pour la simulation
-
-
