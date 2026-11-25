@@ -15,7 +15,7 @@ class ScenarioType(Enum):
 params = {
     "v0": 15.0,
     "s0": 1.0,
-    "T": 1.5
+    "T": 0.1
 }
 
 class Scenario:
@@ -54,6 +54,7 @@ class Scenario:
                 self.t_w            = 200
 
         self.play_scenario()
+
 
     def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
