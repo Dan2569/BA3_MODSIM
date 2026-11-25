@@ -59,7 +59,7 @@ class Scenario:
     def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
-        lanes = [] # pas sur que la boucle step fonctionen corretement dans les 2 sens
+        lanes = []
         for direction in (+1, -1):
             for lane in range(cp.N_LANES):
                 idx = np.flatnonzero((veh["direction"] == direction) & (veh["lane"] == lane))
@@ -68,11 +68,11 @@ class Scenario:
         for k, t in enumerate(times):
             for lane, indices in enumerate(lanes):
                 #_____STEP_____
-                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
-                veh["s"][indices], veh["v"][indices] = s_new, v_new
-
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
-                    accelerations[lane][0] = -cp.BMAX #wont work i think, will fix later
+                    accelerations[lane][0] = -cp.BMAX #maybe work actually
+                # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
+                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params, veh["direction"][indices[O]])
+                veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
                 positions[lane, k]     = positions[lane, k - 1] + infos["dist"]
@@ -93,9 +93,9 @@ class Scenario:
 
             # _____INIT TABLES_____
             # not up to date since now can ivertake -> not fixed number of cars on one lane then
-            times = np.arange(0.0, self.t_end + self.dt, self.dt) # nvm 0.1 in the jupyter
+            times = np.arange(0.0, self.t_end + self.dt, self.dt)
             T = len(times)
-            N = len(simulation["s"])
+            N = len(simulation["s"]) // 4
 
             positions     = np.zeros((4, T, N))
             speeds        = np.zeros((4, T, N))
@@ -149,6 +149,9 @@ class Scenario:
 
     def _mean_metric(self, metric, cl):
         n    = metric.shape[0]
+        if n < 2:
+            return metric, 0.0
+
         mean = np.mean(metric, axis=0)
         #ddof=1 -> Bessel's correction aaskip si ddof=0 -> underestimates the true variance
         std  = np.std(metric, axis=0, ddof=1)
@@ -159,5 +162,5 @@ class Scenario:
 
 
     def print_results(self, data):
-        for key, mean, error_margin in data.items():
+        for key, (mean, error_margin) in data.items():
             print(f"{key}: {mean} ± {error_margin} = [{mean - error_margin}, {mean + error_margin}] \n")
