@@ -55,7 +55,7 @@ class Scenario:
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
-                self.N              = [40//(cp.N_LANES*2)]
+                self.N              = [0//(cp.N_LANES*2)]
                 self.circ_stad      = cp.make_stadium()
                 self.veh            = [cp.place_vehicles(self.circ_stad, self.N[0])]
                 self.t_w            = 200
