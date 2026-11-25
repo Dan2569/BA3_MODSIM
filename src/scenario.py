@@ -20,15 +20,14 @@ params = {
 }
 
 class Scenario:
-    def __init__(self, interval = 0.99, scenario=ScenarioType.S1):
+    def __init__(self, scenario=ScenarioType.S1):
         self.scenario      = scenario
-        self.conf_interval = interval
         self.seeds         = [randint(0, 1000) for _ in range(20)]
         self.v_equilibre   = 7 # still needs to be calculated
         self.t_end         = 600
         self.t_w           = 300
         self.dt            = 0.1
-        self.N             =  0
+        self.N             = 0
 
 
         match scenario:
@@ -85,7 +84,7 @@ class Scenario:
         return times, positions, speeds, accelerations, gaps, collisions
 
 
-    def play_scenario(self):
+    def play_scenario(self, confidence_level=0.95):
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
@@ -107,12 +106,12 @@ class Scenario:
             # _____SIMULATION_____
             simulations.append(self._simulation_loop(simulation, times, positions, speeds, accelerations, gaps, collisions))
 
-        self.results = self.compute_results(simulations, times, self.conf_interval)
+        self.results = self.compute_results(simulations, times, confidence_level)
         self.print_results(self.results)
         return self.results
 
 
-    def compute_results(self, simulations, times, ci=0.99):
+    def compute_results(self, simulations, times, confidence_level):
         '''build the trajectories to extract the data from the simulations, then mean it to produce one piece of result'''
         #_____INIT_TABLES_____
         Q     = np.zeros((len(simulations), 4))
@@ -140,29 +139,25 @@ class Scenario:
                 # convergence time for s3
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
-        return {"Q"    : self._mean_metric(Q, ci),
-                "C"    : self._mean_metric(C, ci),
-                "D_max": self._mean_metric(D_max, ci),
-                "D_99" : self._mean_metric(D_99, ci),
-                "sat"  : self._mean_metric(sat, ci),
-                "E_bar": self._mean_metric(E_bar, ci)}
+        return {"Q"    : self._mean_metric(Q, confidence_level),
+                "C"    : self._mean_metric(C, confidence_level),
+                "D_max": self._mean_metric(D_max, confidence_level),
+                "D_99" : self._mean_metric(D_99, confidence_level),
+                "sat"  : self._mean_metric(sat, confidence_level),
+                "E_bar": self._mean_metric(E_bar, confidence_level)}
 
 
-    def _mean_metric(self, metric, ci=0.99):
-        #ohh still need to add the ci actually my bad
+    def _mean_metric(self, metric, cl):
         n    = metric.shape[0]
         mean = np.mean(metric, axis=0)
-        std  = np.std(metric, axis=0)
-        # needs to use calculate the Zalpha/2
-        # stats from scity to do so
-        lower = mean - 1.960 * (std/np.sqrt(n))
-        upper = mean + 1.960 * (std/np.sqrt(n))
+        #ddof=1 -> Bessel's correction aaskip si ddof=0 -> underestimates the true variance
+        std  = np.std(metric, axis=0, ddof=1)
+        #stats.t.ppf to calculate the  the Z for a given confidence level with n-1 degrees of freedom (geeksforgeeks)
+        error_margin = stats.t.ppf((1.0 + cl) / 2.0, df=n - 1) * (std / np.sqrt(n))
 
-        interval       = (metric>lower) & (metric<upper)
-        confident_mean = np.mean(metric[interval])
-        # hyper raciste, peut etre ca matrche, peut etre j'ai rien compris on verra
-        return confident_mean
+        return mean, error_margin
+
 
     def print_results(self, data):
-        for key, value in data.items():
-            print(f"{key}: {value}\n")
+        for key, mean, error_margin in data.items():
+            print(f"{key}: {mean} ± {error_margin} = [{mean - error_margin}, {mean + error_margin}] \n")
