@@ -73,7 +73,7 @@ def impact_speeds(traj):
     return np.array([c[2] for c in traj.collisions])
 
 #made by AI
-def convergence_time(traj, eps,t_start=None):
+def convergence_time(traj, eps=1e-9,t_start=None):
     m = _mask(traj, t_start, None)
     E = equilibrium_distance(traj)
     E = E[m]
