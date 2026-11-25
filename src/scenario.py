@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum
 from random import randint
 
@@ -71,7 +70,7 @@ class Scenario:
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
                     accelerations[lane][0] = -cp.BMAX #maybe work actually
                 # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
-                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params, veh["direction"][indices[O]])
+                s_new, v_new, infos = cp.step(t, veh["direction"][indices[O]], veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
@@ -136,7 +135,7 @@ class Scenario:
                 D_99[i, j]  = mt.percentile_deceleration(traj, self.t_w, self.t_end)
                 sat[i, j]   = mt.saturation_fraction(traj, self.t_w, self.t_end)
                 E_bar[i, j] = mt.mean_equilibrium_distance(traj, self.t_w, self.t_end)
-                # convergence time for s3
+                # convergence time for s3, need find epsilon (dunno)
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
         return {"Q"    : self._mean_metric(Q, confidence_level),
