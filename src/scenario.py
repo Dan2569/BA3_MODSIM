@@ -70,7 +70,7 @@ class Scenario:
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
                     accelerations[lane][0] = -cp.BMAX #maybe work actually
                 # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
-                s_new, v_new, infos = cp.step(t, veh["direction"][indices[O]], veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
+                s_new, v_new, infos = cp.step(t, veh["direction"][indices[0]], veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
