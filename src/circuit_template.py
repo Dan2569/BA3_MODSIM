@@ -292,12 +292,12 @@ def print_neighbours_table(veh, L):
 
 def acceleration(gap, v, dv, params):
     """ Calcule l'accélération théorique visée pour chaque véhicule.
-    
+
     gap : float ou np.ndarray, distance pare-chocs à pare-chocs s_n [m]
     v : float ou np.ndarray, vitesse actuelle v_n [m/s]
     dv : float ou np.ndarray, vitesse relative (v_leader - v_n) [m/s]
     params : dict contenant v0, a_max, b_max, s0, T
-    
+
     Valeurs par défaut inspirées de l'IDM original
     """
     v0 = params.get('v0', 30.0) # Vitesse désirée (max 30 m/s)
@@ -307,7 +307,7 @@ def acceleration(gap, v, dv, params):
     s_star = s0+v*T # Gap désiré en fonction de la vitesse actuelle
     a_variation = (gap-s_star)/(T**2) + (dv/T) # Accélération ou décélération en fonction du leader
     a_libre = (v0 - v) / T # Accélération si la route est libre pour atteindre v0
-    
+
     new_a = np.minimum(a_libre, a_variation) # Accélération finale
     return new_a
 
