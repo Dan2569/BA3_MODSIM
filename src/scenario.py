@@ -5,6 +5,7 @@ from random import randint
 import circuit_template as cp
 import metric as mt
 import numpy as np
+from scipy import stats
 
 
 class ScenarioType(Enum):
@@ -27,15 +28,16 @@ class Scenario:
         self.t_end         = 600
         self.t_w           = 300
         self.dt            = 0.1
+        self.N             =  0
 
 
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter et le min gap est WRONG
-                self.N         = 22
+                self.N         = [22//(cp.N_LANES*2)]
                 self.circ_stad = cp.make_circle(230.0)
-                self.veh       = [cp.place_vehicles(self.circ_stad, self.N, "uniform",
-                                               self.N/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
+                self.veh       = [cp.place_vehicles(self.circ_stad, self.N[0], "uniform",
+                                               self.N[0]/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
                 for seed_vehicles in self.veh:
                         seed_vehicles["v"][:] = 0
 
@@ -43,13 +45,13 @@ class Scenario:
                 min_gap        = 2.0
                 self.circ_stad = cp.make_stadium()
                 max            = int(self.circ_stad.L // (cp.VEH_LENGTH + min_gap))
-                self.N         = [randint(10, max) for _ in range(20)]
+                self.N         = [randint(10, max)//(cp.N_LANES*2) for _ in range(20)]
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N[i], "random", 2.0, self.seeds[i]) for i in range(len(self.seeds))]
 
             case ScenarioType.S3:
-                self.N              = 40
+                self.N              = [40//(cp.N_LANES*2)]
                 self.circ_stad      = cp.make_stadium()
-                self.veh            = [cp.place_vehicles(self.circ_stad, self.N)]
+                self.veh            = [cp.place_vehicles(self.circ_stad, self.N[0])]
                 self.veh[0]["v"][:] = self.v_equilibre
                 self.t_w            = 200
 
@@ -80,30 +82,32 @@ class Scenario:
                 gaps[lane][k]          = infos["gap"] # a ajouter dans step, pas ici de le faire
                 collisions[lane].append(infos["impacts"]) # fix the impact output in step to match dan version of trajectory
 
-        return positions, speeds, accelerations, gaps, collisions
+        return times, positions, speeds, accelerations, gaps, collisions
 
 
     def play_scenario(self):
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
-        for i in range(len(self.veh)):
+        times = np.arange(0.0, self.t_end + self.dt, self.dt) #need to change this line, but thats how i pass times to the helop function for now
+        for simulation in self.veh:
 
             # _____INIT TABLES_____
+            # not up to date since now can ivertake -> not fixed number of cars on one lane then
             times = np.arange(0.0, self.t_end + self.dt, self.dt) # nvm 0.1 in the jupyter
             T = len(times)
+            N = len(simulation["s"])
 
-            positions     = np.zeros((4, T, self.N))
-            speeds        = np.zeros((4, T, self.N))
-            accelerations = np.zeros((4, T, self.N))
-            gaps          = np.zeros((4, T, self.N))
+            positions     = np.zeros((4, T, N))
+            speeds        = np.zeros((4, T, N))
+            accelerations = np.zeros((4, T, N))
+            gaps          = np.zeros((4, T, N))
             collisions    = [[] for _ in range(4)]
 
             # _____SIMULATION_____
-            veh = self.veh[i]
-            simulations.append(self._simulation_loop(veh, times, positions, speeds, accelerations, gaps, collisions))
+            simulations.append(self._simulation_loop(simulation, times, positions, speeds, accelerations, gaps, collisions))
 
-        self.results = self.compute_results(simulations, simulations[0]["times"], self.conf_interval)
+        self.results = self.compute_results(simulations, times, self.conf_interval)
         self.print_results(self.results)
         return self.results
 
@@ -122,7 +126,7 @@ class Scenario:
         trajectories = [
             [mt.Trajectory(times, pos[lane], spd[lane], acc[lane], gap[lane], col[lane], self.circ_stad.L)
                 for lane in range(4)]
-            for pos, spd, acc, gap, col in simulations]
+            for times, pos, spd, acc, gap, col in simulations]
 
         #_____BUILD_DATA_FROM_TRAJECTORIES_____
         for i, row in enumerate(trajectories):
@@ -146,16 +150,19 @@ class Scenario:
 
     def _mean_metric(self, metric, ci=0.99):
         #ohh still need to add the ci actually my bad
+        n    = metric.shape[0]
         mean = np.mean(metric, axis=0)
-        std = np.std(metric, axis=0)
-        lower = mean - 1.960 * (std/np.sqrt(self.N))
-        upper = mean + 1.960 * (std/np.sqrt(self.N))
+        std  = np.std(metric, axis=0)
+        # needs to use calculate the Zalpha/2
+        # stats from scity to do so
+        lower = mean - 1.960 * (std/np.sqrt(n))
+        upper = mean + 1.960 * (std/np.sqrt(n))
 
-        interval = metric>lower & metric<upper
-        confident_mean = np.mean(interval)
+        interval       = (metric>lower) & (metric<upper)
+        confident_mean = np.mean(metric[interval])
         # hyper raciste, peut etre ca matrche, peut etre j'ai rien compris on verra
         return confident_mean
 
     def print_results(self, data):
-        for key, value in data.items:
+        for key, value in data.items():
             print(f"{key}: {value}\n")
