@@ -15,10 +15,11 @@ class ScenarioType(Enum):
 
 params = {
     "v0"        : 7,
-    "T"         : 0.1,
+    "T"         : 1.5,
+    "t"         : 0.0,
     "direction" : +1,
-    "strategy"  : Strategy.maxVelocity,
-    "forced"    : {0 : 1.0}
+    "strategy"  : cp.Strategy.maxVelocity,
+    "forced"    : {}
 }
 
 
@@ -74,8 +75,10 @@ class Scenario:
                 #_____STEP_____
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
                     params["forced"] = {0: -cp.BMAX}
+                else:
+                    params["forced"] = {}
                 # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
-                params["T"] = t
+                params["t"] = t
                 params["direction"] = veh["direction"][indices[0]]
                 s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new

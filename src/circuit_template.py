@@ -378,7 +378,7 @@ def step(s, v, dt, circuit, params):
             todo = neg
         for i in np.flatnonzero(todo):
             n_veh = [i for i, x in enumerate(todo) if x == True]
-            impact = (params["T"],n_veh,v_new[i] - v_new[lead_safe[i]])
+            impact = (params["t"],n_veh,v_new[i] - v_new[lead_safe[i]])
             impacts.append(impact)
         dist = np.where(todo, dist + gap_new, dist)   # recule jusqu'à gap = 0
         v_new = np.where(todo, v_new[lead_safe], v_new)   # prend la vitesse du leader
