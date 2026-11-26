@@ -88,7 +88,7 @@ class Scenario:
                 speeds[lane][k]        = v_new
                 accelerations[lane][k] = infos["a_eff"]
                 gaps[lane][k]          = infos["gap"] # a ajouter dans step, pas ici de le faire
-                collisions[lane].append(infos["impacts"]) # fix the impact output in step to match dan version of trajectory
+                if len(infos["impacts"]) > 0: collisions[lane].extend(infos["impacts"])  # fix the impact output in step to match dan version of trajectory
 
         return times, positions, speeds, accelerations, gaps, collisions
 
@@ -159,7 +159,7 @@ class Scenario:
     def _mean_metric(self, metric, cl):
         n    = metric.shape[0]
         if n < 2:
-            return metric, 0.0
+            return metric[0], np.zeros(metric.shape[1])
 
         mean = np.mean(metric, axis=0)
         #ddof=1 -> Bessel's correction aaskip si ddof=0 -> underestimates the true variance
@@ -171,5 +171,13 @@ class Scenario:
 
 
     def print_results(self, data):
-        for key, (mean, error_margin) in data.items():
-            print(f"{key}: {mean} ± {error_margin} = [{mean - error_margin}, {mean + error_margin}] \n")
+        print(f"=== {self.scenario.value} ===")
+        idx = 0
+        for direction in (+1, -1):
+            print(f"\n--- Direction {direction:+d} ---")
+            for lane in range(cp.N_LANES):
+                print(f"  Lane {lane}:")
+                for key, (mean, err) in data.items():
+                    m, e = mean[idx], err[idx]
+                    print(f"    {key:6s}: {m:8.3f} ± {e:7.3f}  [{m - e:8.3f}, {m + e:8.3f}]")
+                idx += 1
