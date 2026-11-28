@@ -3,9 +3,15 @@
 ## URGENT (avant ce weekend)
 - Chose Strategies, and its values[ ]
   - maxVelocity ? YES - NO
-  - leastBreakes ? YES - NO
-  - ...
-- Implement the Strategies[ ]
+  - minBreakes (Stéphane) ? YES - NO
+  - dampStopNGo (Stéphane, quaisment fait) ? YES - NO
+
+- Edit the Scenarios[ ]
+  - S1 allouer mettre un boolén pour choisir entre 1 et 4 voies (regarder le masque) (Stéphane) :
+  - S2 & S3 (Daniel) : YES - NO
+
+- Fonction simulate pour que ça prenne 1 er 4 voies (Stéphane) : YES - NO
+
 
 ## IMPORTANT (mardi)
 - Overtakes [ ]
@@ -13,7 +19,7 @@
   - Update the metric functions to work on 2 lanes [ ]
   - Update the step method to work with overtakes [ ]
     - the circuit template already looks for neighbors on other lane
--Cleanup [ ]
+- Cleanup [ ]
 
 ## MEHH (a determiner)
 - Template.ipynb [ ]

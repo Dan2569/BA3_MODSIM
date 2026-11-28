@@ -30,8 +30,8 @@ class Scenario:
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter et le min gap est WRONG
-                self.N         = 22
                 self.circ_stad = cp.make_circle(230.0)
+                self.N         = 22
                 self.veh       = []
                 for seed in self.seeds:
                     veh        = cp.place_vehicles(self.circ_stad, 22, "uniform", 0, seed) #J'ai 0 de manière arbitraire, il est pas utilisé dans le cas de uniform

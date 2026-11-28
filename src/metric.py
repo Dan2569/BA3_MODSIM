@@ -102,7 +102,7 @@ if __name__ == "__main__":
         collisions=[],
         L=100.0,
     )
-    q = flow_Q(flow_traj, 0, 1)
+    q = flow_traj.flow_Q(flow_traj, 0, 1)
     print("Q =", q, "(attendu 1440)")
     assert np.isclose(q, 1440.0)
 
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         t=t, x=x, v=np.full((5, 4), 10.), a=np.zeros((5, 4)),
         gap=np.full((5, 4), 20.), collisions=[], L=100.0,
     )
-    assert np.isclose(flow_Q(flow_traj2, 1, 2), 1440.0)
+    assert np.isclose(flow_traj2.flow_Q(flow_traj2, 1, 2), 1440.0)
 
     # --- Test 3 : équilibre parfait -> E = 0 ---
     eq = Trajectory(
@@ -123,12 +123,12 @@ if __name__ == "__main__":
         gap=np.full((2, 4), 20.), collisions=[], L=100.0,
     )
     assert eq.get_s_e() == 20.0
-    assert np.allclose(equilibrium_distance(eq), 0.0)
+    assert np.allclose(eq.equilibrium_distance(), 0.0)
 
     # --- Test 4 : collisions et vitesses d'impact ---
     eq.collisions = [(0.5, 1, 4.0), (0.8, 2, 2.0)]
-    assert collision_count(eq) == 2
-    assert np.allclose(impact_speeds(eq), [4.0, 2.0])
+    assert eq.collision_count() == 2
+    assert np.allclose(eq.impact_speeds(), [4.0, 2.0])
 
     # --- Test 5 : décélération et saturation ---
     dec = Trajectory(
@@ -137,9 +137,9 @@ if __name__ == "__main__":
         a=np.array([[0., 0.], [-9., -3.], [1., 0.]]),
         gap=np.full((3, 2), 20.), collisions=[], L=40.0,
     )
-    assert max_deceleration(dec) == 9.0
-    assert np.isclose(saturation_fraction(dec), 1 / 6)   # 1 case sur 6
-    assert max_deceleration(dec, 2, 2) == 0.0            # fenêtre sur le dernier pas
+    assert dec.max_deceleration() == 9.0
+    assert np.isclose(dec.saturation_fraction(), 1 / 6)   # 1 case sur 6
+    assert dec.max_deceleration(2, 2) == 0.0            # fenêtre sur le dernier pas
 
     # --- Test 6 : temps de convergence ---
     conv = Trajectory(
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         a=np.zeros((5, 2)), gap=np.full((5, 2), 20.), collisions=[], L=50.0,
     )
     # s_e = 50/2 - 5 = 20 ; E est > 0 aux pas 0 et 1, puis nul
-    assert convergence_time(conv, eps=0.01) == 2.0
+    assert conv.convergence_time(eps=0.01) == 2.0
 
     print("Tous les tests passent")
 
