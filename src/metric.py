@@ -102,7 +102,7 @@ if __name__ == "__main__":
         collisions=[],
         L=100.0,
     )
-    q = flow_traj.flow_Q(flow_traj, 0, 1)
+    q = flow_traj.flow_Q(0, 1)
     print("Q =", q, "(attendu 1440)")
     assert np.isclose(q, 1440.0)
 
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         t=t, x=x, v=np.full((5, 4), 10.), a=np.zeros((5, 4)),
         gap=np.full((5, 4), 20.), collisions=[], L=100.0,
     )
-    assert np.isclose(flow_traj2.flow_Q(flow_traj2, 1, 2), 1440.0)
+    assert np.isclose(flow_traj2.flow_Q(1, 2), 1440.0)
 
     # --- Test 3 : équilibre parfait -> E = 0 ---
     eq = Trajectory(

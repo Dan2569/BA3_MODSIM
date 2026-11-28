@@ -1,5 +1,5 @@
 import numpy as np
-from enum import Enum
+from enum import Enum, auto
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.patches import PathPatch, Polygon
@@ -8,9 +8,9 @@ from scipy.interpolate import splev, splprep
 from scipy.integrate import solve_ivp
 
 class Strategy(Enum):
-    maxVelocity = {} # max accelleration -> full brakes
-    minBreaks = {} # keep good distance to leader
-    dampStopNGo = {} # avoid StopNGo
+    maxVelocity = auto() # max accelleration -> full brakes
+    minBreaks = auto() # keep good distance to leader
+    dampStopNGo = auto() # avoid StopNGo
 
 LANE_WIDTH = 3.5      # largeur d'une voie [m]
 MEDIAN_WIDTH = 3.0    # largeur du terre-plein central [m]
@@ -297,30 +297,47 @@ def print_neighbours_table(veh, L):
     .background_gradient(subset=cols_gap, cmap="RdYlGn", vmin=0, vmax=60).set_caption("Voisins de chaque véhicule (gap = pare-chocs à pare-chocs)"))
 
 
-def loi_idm(gap, v, dv, params):
-    """Loi linéaire à temps inter-véhiculaire constant (type ACC)."""
-    v0 = params.get('v0', 30.0)     # vitesse désirée [m/s]
-    s0 = params.get('s0', 2.0)      # distance minimale à l'arrêt [m]
-    T = params.get('T', 1.5)        # temps inter-véhiculaire [s]
+def cth_lineaire(gap, v, dv, params):
+    """Loi linéaire à temps inter-véhiculaire constant (type ACC, CTH in English)."""
+    v0 = params["v0"]
+    s0 = params["s0"]
+    T = params["T"]
+
     s_star = s0 + v * T
+
     a_variation = (gap - s_star) / (T ** 2) + dv / T
     a_libre = (v0 - v) / T
+
     return np.minimum(a_libre, a_variation)
 
+def idm(gap, v, dv, params):
+    """Modèle IDM (Intelligent Driver Model)."""
+    v0 = params["v0"]
+    s0 = params["s0"]
+    T = params["T"]
+    a_max = params["a_max"]
+    b = params["b"]
+    delta = params["delta"]
+
+    s_star = s0 + np.maximum(0, v * T - (v * dv) / (2 * np.sqrt(a_max * b)))
+
+    return a_max * (1 - (v / v0) ** delta - (s_star / gap) ** 2)
+
+def gipps(gap, v, dv, params):
+    """Modèle Gipps (1981)."""
+    return None
 
 def acceleration(gap, v, dv, params):
     """Point d'entrée unique, appelé par step : aiguille vers la stratégie params["strategy"]."""
     match params.get("strategy"):
-        case Strategy.maxVelocity:
-            return loi_idm(gap, v, dv, params)
-        case Strategy.minBreaks:
-            return None
         case Strategy.dampStopNGo:
-            return None
+            return cth_lineaire(gap, v, dv, params)
+        case Strategy.minBreaks:
+            return idm(gap, v, dv, params)
+        case Strategy.maxVelocity:
+            return gipps(gap, v, dv, params)
         case _:
             raise ValueError('Strategy unknown')
-
-
 
 def integrer_scipy(gap, v, has, lead_safe, dt, params):
     """Intègre [distance parcourue, vitesse] des N véhicules sur [0, dt] avec solve_ivp."""

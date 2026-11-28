@@ -16,17 +16,25 @@ class ScenarioType(Enum):
 
 
 class Scenario:
-    def __init__(self, scenario=ScenarioType.S1):
+    def __init__(self, scenario=ScenarioType.S1, single_lane=True):
         self.scenario      = scenario
-        self.seeds         = list(range(20))
+        self.single_lane   = single_lane if scenario == ScenarioType.S1 else False
+        self.n_lanes       = 1 if self.single_lane else 2*cp.N_LANES
+        self.seeds         = list(range(2)) #TODO: Remettre à 20 une fois les tests validés
         self.v_equilibre   = 7
         self.t_end         = 600
         self.t_w           = 300
         self.dt            = 0.1
-        self.N             = 0
-        self.params = {"v0" : 7, "T" : 1.5, "t" : 0.0, "direction" : +1, "strategy" : cp.Strategy.maxVelocity, "forced" : {}}
-
-
+        self.params        = {"v0": self.v_equilibre,               # vitesse désirée (d'équilibre) (m/s)
+                              "s0": 2.0,                            # distance pare-chocs (m)
+                              "T": 1.5,                             # temps inter-véhiculaire (s)
+                              "a_max": 3,                           # accélération max (m/s^2)
+                              "b": 9,                               # décélération de confort (m/s^2)
+                              "delta": 4.0,                         # Exposant d'accélération (loi IDM)
+                              "t": 0.0,                             # temps de simulation (s)
+                              "direction": +1,
+                              "strategy": cp.Strategy.dampStopNGo,
+                              "forced": {}}        
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter et le min gap est WRONG
@@ -34,17 +42,11 @@ class Scenario:
                 self.N         = 22
                 self.veh       = []
                 for seed in self.seeds:
-                    veh        = cp.place_vehicles(self.circ_stad, 22, "uniform", 0, seed) #J'ai 0 de manière arbitraire, il est pas utilisé dans le cas de uniform
-                    mask       = (veh["direction"] == 1) & (veh["lane"] == 0)      
-                    for key in veh:
-                        veh[key]    = veh[key][mask]
-                        
-                    veh["v"][:]     = 0
+                    veh        = cp.place_vehicles(self.circ_stad, 22, "uniform", 0, seed) #J'ai 0 de manière arbitraire, il est pas utilisé dans le cas de uniform                        
+                    veh["v"][:]     = 0.0
                     rng             = np.random.default_rng(seed)
-                    veh["s"]        = np.mod(veh["s"] + rng.uniform(-1, 1, size=22), self.circ_stad.L)
+                    veh["s"]        = np.mod(veh["s"] + rng.uniform(-1, 1, size=len(veh["s"])), self.circ_stad.L)
                     self.veh.append(veh)
-
-
             case ScenarioType.S2:
                 min_gap        = 2.0
                 self.circ_stad = cp.make_stadium()
@@ -62,14 +64,19 @@ class Scenario:
         self.play_scenario()
 
 
-    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions, strategy=cp.Strategy.maxVelocity):
+    def _simulation_loop(self, veh, times, positions, speeds, accelerations, gaps, collisions, strategy=cp.Strategy.dampStopNGo):
         '''Prends 1 seed de veh avec ses 4 voies et run la simulation, update les tableaux'''
         #_____MASK_____
         lanes = []
-        for direction in (+1, -1):
-            for lane in range(cp.N_LANES):
-                idx = np.flatnonzero((veh["direction"] == direction) & (veh["lane"] == lane))
-                lanes.append(idx)
+        if self.single_lane:
+            # Seulement la voie 0 dans le sens direct
+            idx = np.flatnonzero((veh["direction"] == +1) & (veh["lane"] == 0))
+            lanes.append(idx)
+        else:
+            for direction in (+1, -1):
+                for lane in range(cp.N_LANES):
+                    idx = np.flatnonzero((veh["direction"] == direction) & (veh["lane"] == lane))
+                    lanes.append(idx)
 
         for k, t in enumerate(times):
             for lane, indices in enumerate(lanes):
@@ -94,7 +101,7 @@ class Scenario:
         return times, positions, speeds, accelerations, gaps, collisions
 
 
-    def play_scenario(self, confidence_level=0.95, strategy=cp.Strategy.maxVelocity):
+    def play_scenario(self, confidence_level=0.95, strategy=cp.Strategy.dampStopNGo):
         '''NP for now, probably can do better time complexity (not a dictionary pro) -> hehe fixed ;)'''
 
         simulations = [] # temp
@@ -107,11 +114,11 @@ class Scenario:
             T = len(times)
             N = len(simulation["s"]) // 4
 
-            positions     = np.zeros((4, T, N))
-            speeds        = np.zeros((4, T, N))
-            accelerations = np.zeros((4, T, N))
-            gaps          = np.zeros((4, T, N))
-            collisions    = [[] for _ in range(4)]
+            positions     = np.zeros((self.n_lanes, T, N))
+            speeds        = np.zeros((self.n_lanes, T, N))
+            accelerations = np.zeros((self.n_lanes, T, N))
+            gaps          = np.zeros((self.n_lanes, T, N))
+            collisions    = [[] for _ in range(self.n_lanes)]
 
             # _____SIMULATION_____
             simulations.append(self._simulation_loop(simulation, times, positions, speeds, accelerations, gaps, collisions, strategy))
@@ -124,28 +131,28 @@ class Scenario:
     def compute_results(self, simulations, times, confidence_level):
         '''build the trajectories to extract the data from the simulations, then mean it to produce one piece of result'''
         #_____INIT_TABLES_____
-        Q     = np.zeros((len(simulations), 4))
-        C     = np.zeros((len(simulations), 4))
-        D_max = np.zeros((len(simulations), 4))
-        D_99  = np.zeros((len(simulations), 4))
-        sat   = np.zeros((len(simulations), 4))
-        E_bar = np.zeros((len(simulations), 4))
+        Q     = np.zeros((len(simulations), self.n_lanes))
+        C     = np.zeros((len(simulations), self.n_lanes))
+        D_max = np.zeros((len(simulations), self.n_lanes))
+        D_99  = np.zeros((len(simulations), self.n_lanes))
+        sat   = np.zeros((len(simulations), self.n_lanes))
+        E_bar = np.zeros((len(simulations), self.n_lanes))
 
         #_____BUILD_TRAJECTORIES_____
         trajectories = [
             [mt.Trajectory(times, pos[lane], spd[lane], acc[lane], gap[lane], col[lane], self.circ_stad.L)
-                for lane in range(4)]
+                for lane in range(self.n_lanes)]
             for times, pos, spd, acc, gap, col in simulations]
 
         #_____BUILD_DATA_FROM_TRAJECTORIES_____
         for i, row in enumerate(trajectories):
             for j, traj in enumerate(row):
-                Q[i, j]     = traj.flow_Q(traj, self.t_w, self.t_end)
-                C[i, j]     = traj.collision_count(traj)
-                D_max[i, j] = traj.max_deceleration(traj, self.t_w, self.t_end)
-                D_99[i, j]  = traj.percentile_deceleration(traj, self.t_w, self.t_end)
-                sat[i, j]   = traj.saturation_fraction(traj, self.t_w, self.t_end)
-                E_bar[i, j] = traj.mean_equilibrium_distance(traj, self.t_w, self.t_end)
+                Q[i, j]     = traj.flow_Q(self.t_w, self.t_end)
+                C[i, j]     = traj.collision_count()
+                D_max[i, j] = traj.max_deceleration(self.t_w, self.t_end)
+                D_99[i, j]  = traj.percentile_deceleration(self.t_w, self.t_end)
+                sat[i, j]   = traj.saturation_fraction(self.t_w, self.t_end)
+                E_bar[i, j] = traj.mean_equilibrium_distance(self.t_w, self.t_end)
                 # convergence time for s3, need find epsilon (dunno)
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
@@ -173,12 +180,18 @@ class Scenario:
 
     def print_results(self, data):
         print(f"=== {self.scenario.value} ===")
-        idx = 0
-        for direction in (+1, -1):
-            print(f"\n--- Direction {direction:+d} ---")
-            for lane in range(cp.N_LANES):
-                print(f"  Lane {lane}:")
-                for key, (mean, err) in data.items():
-                    m, e = mean[idx], err[idx]
-                    print(f"    {key:6s}: {m:8.3f} ± {e:7.3f}  [{m - e:8.3f}, {m + e:8.3f}]")
-                idx += 1
+        if self.single_lane:
+            print("\n--- Voie unique (Direction +1, Lane 0) ---")
+            for key, (mean, err) in data.items():
+                m, e = mean[0], err[0]
+                print(f"    {key:6s}: {m:8.3f} ± {e:7.3f}  [{m - e:8.3f}, {m + e:8.3f}]")
+        else:
+            idx = 0
+            for direction in (+1, -1):
+                print(f"\n--- Direction {direction:+d} ---")
+                for lane in range(cp.N_LANES):
+                    print(f"  Lane {lane}:")
+                    for key, (mean, err) in data.items():
+                        m, e = mean[idx], err[idx]
+                        print(f"    {key:6s}: {m:8.3f} ± {e:7.3f}  [{m - e:8.3f}, {m + e:8.3f}]")
+                    idx += 1

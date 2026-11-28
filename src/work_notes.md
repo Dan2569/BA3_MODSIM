@@ -3,14 +3,14 @@
 ## URGENT (avant ce weekend)
 - Chose Strategies, and its values[ ]
   - maxVelocity ? YES - NO
-  - minBreakes (Stéphane) ? YES - NO
-  - dampStopNGo (Stéphane, quaisment fait) ? YES - NO
+  - minBreakes (Stéphane) ? YES
+  - dampStopNGo (Stéphane) ? YES
 
 - Edit the Scenarios[ ]
-  - S1 allouer mettre un boolén pour choisir entre 1 et 4 voies (regarder le masque) (Stéphane) :
+  - S1 allouer mettre un boolén pour choisir entre 1 et 4 voies (regarder le masque) (Stéphane) : YES
   - S2 & S3 (Daniel) : YES - NO
 
-- Fonction simulate pour que ça prenne 1 er 4 voies (Stéphane) : YES - NO
+- Fonction simulate pour que ça prenne 1 et 4 voies (Stéphane) : YES
 
 
 ## IMPORTANT (mardi)
