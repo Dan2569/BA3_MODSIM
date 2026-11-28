@@ -1,5 +1,5 @@
 from enum import Enum
-from random import randint
+from random import randint,sample
 
 import circuit_template as cp
 import metric as mt
@@ -18,7 +18,7 @@ class ScenarioType(Enum):
 class Scenario:
     def __init__(self, scenario=ScenarioType.S1):
         self.scenario      = scenario
-        self.seeds         = [randint(0, 1000) for _ in range(20)]
+        self.seeds         = list(range(20))
         self.v_equilibre   = 7
         self.t_end         = 600
         self.t_w           = 300
@@ -30,12 +30,20 @@ class Scenario:
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter et le min gap est WRONG
-                self.N         = [22]
+                self.N         = 22
                 self.circ_stad = cp.make_circle(230.0)
-                self.veh       = [cp.place_vehicles(self.circ_stad, self.N[0], "uniform",
-                                               self.N[0]/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
-                for seed_vehicles in self.veh:
-                        seed_vehicles["v"][:] = 0
+                self.veh       = []
+                for seed in self.seeds:
+                    veh        = cp.place_vehicles(self.circ_stad, 22, "uniform", 0, seed) #J'ai 0 de manière arbitraire, il est pas utilisé dans le cas de uniform
+                    mask       = (veh["direction"] == 1) & (veh["lane"] == 0)      
+                    for key in veh:
+                        veh[key]    = veh[key][mask]
+                        
+                    veh["v"][:]     = 0
+                    rng             = np.random.default_rng(seed)
+                    veh["s"]        = np.mod(veh["s"] + rng.uniform(-1, 1, size=22), self.circ_stad.L)
+                    self.veh.append(veh)
+
 
             case ScenarioType.S2:
                 min_gap        = 2.0
