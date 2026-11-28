@@ -23,67 +23,67 @@ class Trajectory:
         return self.L / self.get_N() - self.l
 
 
-def _mask(traj, t_w=None, t_end=None):
-    t_w = traj.t[0] if t_w is None else t_w
-    t_end = traj.t[-1] if t_end is None else t_end
-    return (traj.t >= t_w) & (traj.t <= t_end)
+    def _mask(self, t_w=None, t_end=None):
+        t_w = self.t[0] if t_w is None else t_w
+        t_end = self.t[-1] if t_end is None else t_end
+        return (self.t >= t_w) & (self.t <= t_end)
 
 
-def flow_Q(traj, t_w, t_end):
-    i0 = np.argmin(np.abs(traj.t - t_w))
-    i1 = np.argmin(np.abs(traj.t - t_end))
-    dx = traj.x[i1] - traj.x[i0]
-    return 3600 / (traj.L * (traj.t[i1] - traj.t[i0])) * dx.sum()
+    def flow_Q(traj, t_w, t_end):
+        i0 = np.argmin(np.abs(traj.t - t_w))
+        i1 = np.argmin(np.abs(traj.t - t_end))
+        dx = traj.x[i1] - traj.x[i0]
+        return 3600 / (traj.L * (traj.t[i1] - traj.t[i0])) * dx.sum()
 
-def collision_count(traj):
-    return len(traj.collisions)
-
-
-def max_deceleration(traj, t_w=None, t_end=None):
-    m = _mask(traj, t_w, t_end)
-    return np.max(np.maximum(0, -traj.a[m]))
+    def collision_count(self):
+        return len(self.collisions)
 
 
-def percentile_deceleration(traj, t_w=None, t_end=None, q=99):
-    m = _mask(traj, t_w, t_end)
-    return np.percentile(np.maximum(0, -traj.a[m]), q)
+    def max_deceleration(self, t_w=None, t_end=None):
+        m = self._mask(t_w, t_end)
+        return np.max(np.maximum(0, -self.a[m]))
 
 
-def saturation_fraction(traj, t_w=None, t_end=None):
-    m = _mask(traj, t_w, t_end)
-    return np.mean(np.isclose(traj.a[m], -B_MAX))
+    def percentile_deceleration(self, t_w=None, t_end=None, q=99):
+        m = self._mask(t_w, t_end)
+        return np.percentile(np.maximum(0, -self.a[m]), q)
 
 
-def equilibrium_distance(traj):
-    s_e = traj.get_s_e()
-    v_bar = traj.v.mean(axis=1, keepdims=True)                  # (T, 1)
-    A = (traj.gap - s_e) / s_e                                  # (T, N)
-    B = (traj.v - v_bar) / np.maximum(v_bar, 1.0)               # (T, N)
-    C = traj.a / A_MAX                                          # (T, N), signe gardé
-
-    return np.sqrt((A**2 + B**2 + C**2).mean(axis=1))           # (T,)
+    def saturation_fraction(self, t_w=None, t_end=None):
+        m = self._mask(t_w, t_end)
+        return np.mean(np.isclose(self.a[m], -B_MAX))
 
 
-def mean_equilibrium_distance(traj, t_w, t_end):
-    E = equilibrium_distance(traj)
-    mask = (traj.t >= t_w) & (traj.t <= t_end)
-    return E[mask].mean()
+    def equilibrium_distance(self):
+        s_e = self.get_s_e()
+        v_bar = self.v.mean(axis=1, keepdims=True)                  # (T, 1)
+        A = (self.gap - s_e) / s_e                                  # (T, N)
+        B = (self.v - v_bar) / np.maximum(v_bar, 1.0)               # (T, N)
+        C = self.a / A_MAX                                          # (T, N), signe gardé
 
-def impact_speeds(traj):
-    return np.array([c[2] for c in traj.collisions])
+        return np.sqrt((A**2 + B**2 + C**2).mean(axis=1))           # (T,)
 
-#made by AI
-def convergence_time(traj, eps=1e-9,t_start=None):
-    m = _mask(traj, t_start, None)
-    E = equilibrium_distance(traj)
-    E = E[m]
-    t = traj.t[m]
-    above = np.where(E >= eps)[0]       # indices où E est encore trop grand
-    if len(above) == 0:
-        return t[0]           # sous eps dès le départ
-    if above[-1] == len(E) - 1:
-        return np.inf                   # jamais stabilisé
-    return t[above[-1] + 1]        # instant suivant le dernier dépassement
+
+    def mean_equilibrium_distance(self, t_w, t_end):
+        E = self.equilibrium_distance()
+        mask = (self.t >= t_w) & (self.t <= t_end)
+        return E[mask].mean()
+
+    def impact_speeds(traj):
+        return np.array([c[2] for c in traj.collisions])
+
+    #made by AI
+    def convergence_time(self, eps=1e-9,t_start=None):
+        m = self._mask(t_start, None)
+        E = self.equilibrium_distance()
+        E = E[m]
+        t = self.t[m]
+        above = np.where(E >= eps)[0]       # indices où E est encore trop grand
+        if len(above) == 0:
+            return t[0]           # sous eps dès le départ
+        if above[-1] == len(E) - 1:
+            return np.inf                   # jamais stabilisé
+        return t[above[-1] + 1]        # instant suivant le dernier dépassement
 
 # ---------------- Tests ----------------
 #---------------- made by AI ------------

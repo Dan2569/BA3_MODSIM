@@ -9,7 +9,8 @@ from scipy.integrate import solve_ivp
 
 class Strategy(Enum):
     maxVelocity = {} # max accelleration -> full brakes
-    leastBreaks = {} # keep good distance to leader
+    minBreaks = {} # keep good distance to leader
+    dampStopNGo = {} # avoid StopNGo
 
 LANE_WIDTH = 3.5      # largeur d'une voie [m]
 MEDIAN_WIDTH = 3.0    # largeur du terre-plein central [m]
@@ -312,8 +313,13 @@ def acceleration(gap, v, dv, params):
     match params.get("strategy"):
         case Strategy.maxVelocity:
             return loi_idm(gap, v, dv, params)
-        case Strategy.leastBreaks:
-            raise ValueError('Fonction inconnue')
+        case Strategy.minBreaks:
+            return None
+        case Strategy.dampStopNGo:
+            return None
+        case _:
+            raise ValueError('Strategy unknown')
+
 
 
 def integrer_scipy(gap, v, has, lead_safe, dt, params):

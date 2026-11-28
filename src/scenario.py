@@ -13,14 +13,6 @@ class ScenarioType(Enum):
     S3 = "Freinage d'urgence"
 
 
-params = {
-    "v0"        : 7,
-    "T"         : 1.5,
-    "t"         : 0.0,
-    "direction" : +1,
-    "strategy"  : cp.Strategy.maxVelocity,
-    "forced"    : {}
-}
 
 
 class Scenario:
@@ -32,12 +24,13 @@ class Scenario:
         self.t_w           = 300
         self.dt            = 0.1
         self.N             = 0
+        self.params = {"v0" : 7, "T" : 1.5, "t" : 0.0, "direction" : +1, "strategy" : cp.Strategy.maxVelocity, "forced" : {}}
 
 
         match scenario:
             case ScenarioType.S1:
                 # 1m de perturbations toujours a ajouter et le min gap est WRONG
-                self.N         = [22//(cp.N_LANES*2)]
+                self.N         = [22]
                 self.circ_stad = cp.make_circle(230.0)
                 self.veh       = [cp.place_vehicles(self.circ_stad, self.N[0], "uniform",
                                                self.N[0]/230 -1, self.seeds[i]) for i in range(len(self.seeds))]
@@ -74,13 +67,13 @@ class Scenario:
             for lane, indices in enumerate(lanes):
                 #_____STEP_____
                 if 200.0 <=t<= 203.0 and self.scenario == ScenarioType.S3:
-                    params["forced"] = {0: -cp.BMAX}
+                    self.params["forced"] = {0: -cp.BMAX}
                 else:
-                    params["forced"] = {}
-                # passed the dirsction to step, needs to handle the direction in wich to step (and add it in argument too)
-                params["t"] = t
-                params["direction"] = veh["direction"][indices[0]]
-                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, params)
+                    self.params["forced"] = {}
+                # passed the direction to step, needs to handle the direction in which to step (and add it in argument too)
+                self.params["t"] = t
+                self.params["direction"] = veh["direction"][indices[0]]
+                s_new, v_new, infos = cp.step(veh["s"][indices], veh["v"][indices], self.dt, self.circ_stad, self.params)
                 veh["s"][indices], veh["v"][indices] = s_new, v_new
 
                 #_____UPDATING_THE_TABLES_____
@@ -139,12 +132,12 @@ class Scenario:
         #_____BUILD_DATA_FROM_TRAJECTORIES_____
         for i, row in enumerate(trajectories):
             for j, traj in enumerate(row):
-                Q[i, j]     = mt.flow_Q(traj, self.t_w, self.t_end)
-                C[i, j]     = mt.collision_count(traj)
-                D_max[i, j] = mt.max_deceleration(traj, self.t_w, self.t_end)
-                D_99[i, j]  = mt.percentile_deceleration(traj, self.t_w, self.t_end)
-                sat[i, j]   = mt.saturation_fraction(traj, self.t_w, self.t_end)
-                E_bar[i, j] = mt.mean_equilibrium_distance(traj, self.t_w, self.t_end)
+                Q[i, j]     = traj.flow_Q(traj, self.t_w, self.t_end)
+                C[i, j]     = traj.collision_count(traj)
+                D_max[i, j] = traj.max_deceleration(traj, self.t_w, self.t_end)
+                D_99[i, j]  = traj.percentile_deceleration(traj, self.t_w, self.t_end)
+                sat[i, j]   = traj.saturation_fraction(traj, self.t_w, self.t_end)
+                E_bar[i, j] = traj.mean_equilibrium_distance(traj, self.t_w, self.t_end)
                 # convergence time for s3, need find epsilon (dunno)
                 # E_barre/N pour S2, pas sur de comment faire pour celui ci, faire le plotlib dans cette methode i guess (probleme de demain anyway)
 
